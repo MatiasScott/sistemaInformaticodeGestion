@@ -1,0 +1,241 @@
+/* ============================================
+   AUTENTICACIÓN - LOGIN
+   ============================================ */
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
+    padding: 20px;
+}
+
+.login-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+    border-top: 4px solid var(--secondary);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-logo {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.login-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.login-subtitle {
+    font-size: 13px;
+    color: var(--dark-gray);
+}
+
+.login-form {
+    margin-top: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--primary);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.2);
+    outline: none;
+}
+
+.form-group input::placeholder {
+    color: #bdc3c7;
+}
+
+.login-button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--secondary) 0%, #e67e22 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3);
+}
+
+.login-button:active {
+    transform: translateY(0);
+}
+
+.login-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--dark-gray);
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.login-footer a {
+    color: var(--secondary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+/* ERROR Y SUCCESS MESSAGES */
+
+.error-message {
+    background: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border-left: 4px solid #e74c3c;
+    font-size: 13px;
+}
+
+.success-message {
+    background: rgba(39, 174, 96, 0.1);
+    color: #27ae60;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border-left: 4px solid #27ae60;
+    font-size: 13px;
+}
+
+/* REMEMBER ME */
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.remember-me input {
+    width: auto;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--secondary);
+}
+
+.remember-me label {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 480px) {
+    .auth-container {
+        min-height: 100vh;
+    }
+
+    .login-box {
+        padding: 25px;
+        border-radius: 5px;
+    }
+
+    .login-logo {
+        font-size: 36px;
+    }
+
+    .login-title {
+        font-size: 20px;
+    }
+
+    .form-group input {
+        padding: 10px;
+        font-size: 13px;
+    }
+}
+
+/* ============================================
+   ESTILOS PARA EL MODAL DE SESIÓN EXPIRADA
+   ============================================ */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    /* Oculto por defecto */
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-overlay.active {
+    display: flex;
+    /* Se muestra cuando tiene la clase active */
+}
+
+.modal {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.modal-error {
+    border-top: 5px solid var(--danger);
+}
+
+.modal-header h2 {
+    color: var(--danger);
+    margin-bottom: 15px;
+}
+
+.modal-body p {
+    margin-bottom: 20px;
+    color: var(--dark-gray);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: center;
+}

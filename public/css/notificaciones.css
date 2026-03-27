@@ -1,0 +1,97 @@
+/* ============================================
+   NOTIFICACIONES
+   ============================================ */
+
+.notificaciones-container {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.notificacion-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    background: var(--light-gray);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--secondary);
+    transition: all 0.3s ease;
+}
+
+.notificacion-item:hover {
+    background: white;
+    box-shadow: 0 2px 8px rgba(243, 156, 18, 0.15);
+}
+
+.notificacion-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.notificacion-content {
+    flex: 1;
+}
+
+.notificacion-titulo {
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.notificacion-mensaje {
+    font-size: 13px;
+    color: var(--dark-gray);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.notificacion-timestamp {
+    font-size: 12px;
+    color: var(--secondary);
+    font-weight: 500;
+}
+
+.notificacion-unread {
+    background: white;
+    border-left-color: var(--danger);
+}
+
+.notificacion-badge {
+    display: inline-block;
+    background: var(--danger);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.notification-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--border-color);
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.filter-btn.active {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+}
+
+.filter-btn:hover {
+    border-color: var(--secondary);
+    color: var(--secondary);
+}

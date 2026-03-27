@@ -1,0 +1,67 @@
+.progress-bar-container {
+    background: #e9ecef;
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 3px;
+}
+
+.progress-bar-fill {
+    background: var(--primary);
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+#actividadesList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.actividad-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    border: 1px solid #d9dfe7;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.actividad-check-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #334155;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.actividad-desc {
+    width: 100%;
+}
+
+.actividad-remove.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.actividad-resumen {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.actividad-resumen li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+    .actividad-item {
+        grid-template-columns: 1fr;
+    }
+}

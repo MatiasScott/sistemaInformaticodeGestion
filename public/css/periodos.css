@@ -1,0 +1,54 @@
+.notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.notification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-radius: 8px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    transition: 0.2s ease;
+}
+
+.notification-item:hover {
+    background: #f1f5ff;
+}
+
+.notification-item.no-leida {
+    border-left: 4px solid #007bff;
+    background: #eef4ff;
+}
+
+.notification-message {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.notification-meta {
+    font-size: 0.85rem;
+    color: #666;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.badge-success {
+    background: #28a745;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #333;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}

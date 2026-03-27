@@ -1,0 +1,73 @@
+/* ============================================
+   CONFIGURACIÓN - CARGOS Y PERÍODOS
+   ============================================ */
+
+.cargos-container, .periodos-container {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cargo-card, .periodo-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 15px;
+    background: var(--light-gray);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--secondary);
+    transition: all 0.3s ease;
+}
+
+.cargo-card:hover, .periodo-card:hover {
+    background: white;
+    box-shadow: 0 2px 8px rgba(243, 156, 18, 0.15);
+}
+
+.icon {
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.cargo-info, .periodo-info {
+    flex: 1;
+}
+
+.cargo-name, .periodo-nombre {
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.cargo-description, .periodo-description {
+    font-size: 13px;
+    color: var(--dark-gray);
+}
+
+.periodo-dates {
+    font-size: 12px;
+    color: var(--secondary);
+    font-weight: 500;
+}
+
+.config-list {
+    list-style: none;
+    padding: 0;
+}
+
+.config-list li {
+    padding: 12px;
+    background: white;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--secondary);
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.config-list li:hover {
+    background: var(--light-gray);
+}
