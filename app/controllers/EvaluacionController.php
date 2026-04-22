@@ -328,38 +328,39 @@ class EvaluacionController extends Controller
         // CUANTITATIVO
         // ================================
         if ($indicador['tipo'] === 'cuantitativo') {
+            // En creación, las variables son opcionales y se completan en edición.
+            if (!empty($data['variables']) && is_array($data['variables'])) {
+                $variables = $data['variables'];
 
-            if (empty($data['variables']) || !is_array($data['variables'])) {
-                die("Debe ingresar las variables.");
-            }
-
-            $variables = $data['variables'];
-
-            // Validar que todas sean numéricas
-            foreach ($variables as $key => $valor) {
-                if (!is_numeric($valor)) {
-                    die("Valor inválido en variable $key.");
+                // Validar que todas sean numéricas
+                foreach ($variables as $key => $valor) {
+                    if (!is_numeric($valor)) {
+                        die("Valor inválido en variable $key.");
+                    }
                 }
+
+                $formula = $indicador['formula'];
+
+                // Reemplazar variables de forma segura (solo tokens completos)
+                foreach ($variables as $variable => $valor) {
+                    $formula = preg_replace('/\\b' . preg_quote($variable, '/') . '\\b/', (string) $valor, $formula);
+                }
+
+                // Evaluar fórmula
+                try {
+                    $valor_calculado = eval("return $formula;");
+                } catch (Throwable $e) {
+                    die("Error en la fórmula.");
+                }
+
+                $valor_calculado = round($valor_calculado, $indicador['decimales']);
+
+                // Guardar JSON para auditoría
+                $valor_ingresado = json_encode($variables);
+            } else {
+                $valor_calculado = 0.0;
+                $valor_ingresado = null;
             }
-
-            $formula = $indicador['formula'];
-
-            // Reemplazar variables de forma segura (solo tokens completos)
-            foreach ($variables as $variable => $valor) {
-                $formula = preg_replace('/\\b' . preg_quote($variable, '/') . '\\b/', (string) $valor, $formula);
-            }
-
-            // Evaluar fórmula
-            try {
-                $valor_calculado = eval("return $formula;");
-            } catch (Throwable $e) {
-                die("Error en la fórmula.");
-            }
-
-            $valor_calculado = round($valor_calculado, $indicador['decimales']);
-
-            // Guardar JSON para auditoría
-            $valor_ingresado = json_encode($variables);
         }
 
         // ================================
@@ -432,6 +433,10 @@ class EvaluacionController extends Controller
 
         // ==== CUANTITATIVO ====
         if ($indicador['tipo'] === 'cuantitativo') {
+
+            if (empty($data['variables']) || !is_array($data['variables'])) {
+                die("Debe ingresar las variables.");
+            }
 
             $variables = $data['variables'];
 
