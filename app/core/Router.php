@@ -37,6 +37,24 @@ class Router {
             }
         }
 
+        // Fallback: búsqueda case-insensitive en el directorio de controladores
+        // (necesario en Linux donde el FS distingue mayúsculas/minúsculas)
+        if (!$controllerFile) {
+            $controllersDir = __DIR__ . '/../controllers/';
+            foreach ($candidates as $cand) {
+                if (empty($cand)) continue;
+                $candName = str_replace(' ', '', ucwords(str_replace('-', ' ', $cand))) . 'Controller';
+                foreach (scandir($controllersDir) as $file) {
+                    if (strcasecmp($file, $candName . '.php') === 0) {
+                        $controllerFile = $controllersDir . $file;
+                        // Obtener el nombre real de clase desde el nombre de archivo
+                        $controllerName = basename($file, '.php');
+                        break 2;
+                    }
+                }
+            }
+        }
+
         if ($controllerFile) {
             require_once $controllerFile;
             $controller = new $controllerName();

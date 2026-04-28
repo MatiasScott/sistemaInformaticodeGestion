@@ -115,7 +115,7 @@ function renderActividadesHtml($actividadRaw)
 
                             <td class="text-center">
                                 <span class="badge badge-secondary">
-                                    <?= htmlspecialchars($pm['peso']) ?>
+                                    <?= htmlspecialchars($pm['peso'] ?? '') ?>
                                 </span>
                             </td>
 
@@ -146,13 +146,13 @@ function renderActividadesHtml($actividadRaw)
                             </td>
 
                             <td class="actions">
-                                <a href="<?= URL_PATH ?>planmejoras/edit/<?= $pm['id'] ?>"
+                                <a href="<?= URL_PATH ?>plan-mejora/edit/<?= $pm['id'] ?>"
                                     class="action-edit"
                                     title="Editar Plan">
                                     <i class="fas fa-edit"></i>
                                 </a>
 
-                                <a href="<?= URL_PATH ?>planmejoras/delete/<?= $pm['id'] ?>"
+                                <a href="<?= URL_PATH ?>plan-mejora/delete/<?= $pm['id'] ?>"
                                     class="action-delete"
                                     title="Eliminar Plan"
                                     onclick="return confirm('¿Eliminar este plan de mejora?')">
