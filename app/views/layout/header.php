@@ -36,6 +36,42 @@
 
 <body>
 
+    <?php
+    $sidebarUnreadNotifications = 0;
+
+    if (!empty($_SESSION['user_id'])) {
+        require_once BASE_PATH . '/app/models/UserModel.php';
+        require_once BASE_PATH . '/app/models/NotificacionModel.php';
+
+        $headerUserModel = new UserModel();
+        $headerNotificationModel = new NotificacionModel();
+        $headerAuthUser = $headerUserModel->getUserWithRolesAndPermissions((int)$_SESSION['user_id']);
+
+        $headerCanViewAll = false;
+        foreach (($headerAuthUser['roles'] ?? []) as $rol) {
+            $nombreRol = $rol['nombre'] ?? '';
+            if ($nombreRol === 'Super Administrador' || $nombreRol === 'Administrador') {
+                $headerCanViewAll = true;
+                break;
+            }
+        }
+
+        $headerAllowedModules = [];
+        foreach (($headerAuthUser['permisos'] ?? []) as $permiso) {
+            $modulo = trim((string)($permiso['modulo'] ?? ''));
+            if ($modulo !== '') {
+                $headerAllowedModules[] = $modulo;
+            }
+        }
+
+        $sidebarUnreadNotifications = $headerNotificationModel->countUnreadForViewer(
+            (int)$_SESSION['user_id'],
+            $headerCanViewAll,
+            $headerAllowedModules
+        );
+    }
+    ?>
+
     <?php require BASE_PATH . '/app/views/layout/sidebar.php'; ?>
 
     <div class="content">

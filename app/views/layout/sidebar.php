@@ -32,9 +32,15 @@
 
             <?php foreach ($items as $item): ?>
                 <?php if (in_array($item, $modules)): ?>
+                    <?php $menuLabel = $item === 'notificacion' ? 'Notificaciones' : ucfirst(str_replace('-', ' ', $item)); ?>
                     <li>
-                        <a href="<?= URL_PATH . $item ?>">
-                            <?= ucfirst(str_replace('-', ' ', $item)) ?>
+                        <a href="<?= URL_PATH . $item ?>" class="<?= $item === 'notificacion' ? 'sidebar-link-with-badge' : '' ?>">
+                            <span><?= $menuLabel ?></span>
+                            <?php if ($item === 'notificacion' && !empty($sidebarUnreadNotifications)): ?>
+                                <span class="sidebar-notification-badge" aria-label="<?= (int)$sidebarUnreadNotifications ?> notificaciones no leídas">
+                                    <?= (int)$sidebarUnreadNotifications ?>
+                                </span>
+                            <?php endif; ?>
                         </a>
                     </li>
                 <?php endif; ?>
