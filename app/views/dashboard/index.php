@@ -1,3 +1,43 @@
+<?php
+/**
+ * Variables inyectadas vía extract($data) desde DashboardController
+ *
+ * @var array       $user
+ * @var string      $ultimoPeriodo
+ * @var int         $totalEstudiantes
+ * @var int         $totalProfesoresTP
+ * @var int         $totalProfesoresMT
+ * @var int         $practicasActivas
+ * @var int         $planesActivos
+ * @var int         $documentosPendientes
+ * @var int         $bloqueados
+ * @var int         $totalGraduados
+ * @var int         $totalCarreras
+ * @var int         $totalProfesores
+ * @var int         $totalProfesoresTC
+ * @var int         $totalProyectos
+ * @var int         $totalProyectosInvestigacion
+ * @var int         $totalProyectosVinculacion
+ * @var int|float   $totalBeneficiarios
+ * @var int         $totalEstudiantesProyectos
+ * @var int         $totalPonencias
+ * @var int         $totalPublicaciones
+ * @var float       $promedioAvanceProyectos
+ * @var array       $estudiantesPrograma
+ * @var array       $graduadosCarreras
+ * @var array       $modalidades
+ * @var array       $proyectosTipo
+ * @var array       $AvanceProyectos
+ * @var array       $AvanceProyectosInvestigacion
+ * @var array       $AvanceProyectosVinculacion
+ * @var array       $areas
+ * @var array       $institutional
+ * @var array       $byIndicator
+ * @var array       $byCriterio
+ * @var int         $startYear
+ * @var int         $endYear
+ */
+?>
 <?php require BASE_PATH . '/app/views/layout/header.php'; ?>
 
 <div class="dashboard-header">

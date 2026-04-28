@@ -80,6 +80,7 @@ class DashboardModel
         $data['practicasActivas'] = $this->fetchOne($this->pdoCon, "
             SELECT COUNT(*) total
             FROM practicas_estudiantes
+            WHERE estado = 'ACTIVA'
         ")['total'];
 
         $data['planesActivos'] = $this->fetchOne($this->pdoSig, "
