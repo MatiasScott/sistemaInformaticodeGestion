@@ -26,6 +26,61 @@ class DashboardModel
         return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    private function fetchAllOptional($pdo, $sql)
+    {
+        try {
+            return $this->fetchAll($pdo, $sql);
+        } catch (PDOException $exception) {
+            if ($this->isOptionalSchemaException($exception)) {
+                return [];
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function isMissingTableException(PDOException $exception)
+    {
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = $errorInfo[0] ?? $exception->getCode();
+        $driverCode = $errorInfo[1] ?? null;
+
+        return $sqlState === '42S02' || (int) $driverCode === 1146;
+    }
+
+    private function isOptionalSchemaException(PDOException $exception)
+    {
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = $errorInfo[0] ?? $exception->getCode();
+        $driverCode = $errorInfo[1] ?? null;
+
+        return $this->isMissingTableException($exception)
+            || $sqlState === '42S22'
+            || (int) $driverCode === 1054;
+    }
+
+    private function getDashboardPeriodoActual()
+    {
+        $periodoActivo = $this->fetchOne($this->pdoSig, "
+            SELECT nombre
+            FROM periodos
+            WHERE estado = 'activo'
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        if (!empty($periodoActivo['nombre'])) {
+            return $periodoActivo['nombre'];
+        }
+
+        $periodoUsers = $this->fetchOne($this->pdoCon, "
+            SELECT MAX(periodo) periodo
+            FROM users
+        ");
+
+        return $periodoUsers['periodo'] ?? null;
+    }
+
     /* =========================
        USUARIO
     ========================= */
@@ -55,15 +110,16 @@ class DashboardModel
     {
 
         $data = [];
+        $periodoActual = $this->getDashboardPeriodoActual();
+        $periodoActualSql = $periodoActual !== null
+            ? $this->pdoCon->quote($periodoActual)
+            : 'NULL';
 
         /* =========================
         PERIODO ACTUAL
         ========================= */
 
-        $data['ultimoPeriodo'] = $this->fetchOne($this->pdoCon, "
-            SELECT MAX(periodo) periodo
-            FROM users
-        ")['periodo'];
+        $data['ultimoPeriodo'] = $periodoActual;
 
         /* =========================
         KPIs
@@ -72,7 +128,7 @@ class DashboardModel
         $data['totalEstudiantes'] = $this->fetchOne($this->pdoCon, "
             SELECT COUNT(*) total
             FROM users
-            WHERE periodo = (SELECT MAX(periodo) FROM users)
+            WHERE periodo = {$periodoActualSql}
             AND estado = 'Activo'
             AND programa NOT IN ('AUTO EVALUACION','AUTO EVALUCION','SEGUIMIENTO DOCENTE','EJEMPLO 1','EJEMPLO')
         ")['total'];
@@ -108,7 +164,7 @@ class DashboardModel
         $data['estudiantesPrograma'] = $this->fetchAll($this->pdoCon, "
             SELECT TRIM(programa) programa, COUNT(*) total
             FROM users
-            WHERE periodo = (SELECT MAX(periodo) FROM users)
+            WHERE periodo = {$periodoActualSql}
             AND estado='Activo'AND programa NOT IN ('AUTO EVALUACION','AUTO EVALUCION','SEGUIMIENTO DOCENTE','EJEMPLO 1','EJEMPLO')
             GROUP BY TRIM(programa)
             ORDER BY total DESC
@@ -136,7 +192,7 @@ class DashboardModel
         $data['totalCarreras'] = $this->fetchOne($this->pdoCon, "
             SELECT COUNT(DISTINCT programa) total
             FROM users
-            WHERE periodo = (SELECT MAX(periodo) FROM users)
+            WHERE periodo = {$periodoActualSql}
         ")['total'];
 
         /* =========================
@@ -266,16 +322,16 @@ class DashboardModel
             SELECT COUNT(*) AS total
             FROM superar1_conectados.users
             WHERE estado_beca LIKE CONCAT('%', RIGHT(
-                (SELECT periodo FROM users ORDER BY periodo DESC LIMIT 1), 2
+                {$periodoActualSql}, 2
             ), '%')
-            AND periodo = (SELECT periodo FROM users ORDER BY periodo DESC LIMIT 1) AND estado ='Activo';
+            AND periodo = {$periodoActualSql} AND estado ='Activo';
         ")['total'];
 
         /* =========================
         PEDI
         ========================= */
 
-        $data['avancePedi'] = $this->fetchAll($this->pdoCon, "
+        $data['avancePedi'] = $this->fetchAllOptional($this->pdoCon, "
             SELECT objetivo_estrategia, avance
             FROM pedi
             WHERE estado='activo'
@@ -285,7 +341,7 @@ class DashboardModel
         POA
         ========================= */
 
-        $data['avancePoa'] = $this->fetchAll($this->pdoCon, "
+        $data['avancePoa'] = $this->fetchAllOptional($this->pdoCon, "
             SELECT nombre_area,
             SUM(CASE WHEN estado_actividad='Ejecutada' THEN presupuesto_anual ELSE 0 END) ejecutado,
             SUM(CASE WHEN estado_actividad='en progreso' THEN presupuesto_anual ELSE 0 END) progreso,
@@ -295,7 +351,7 @@ class DashboardModel
             GROUP BY nombre_area
         ");
 
-        $data['actividadesPoa'] = $this->fetchAll($this->pdoCon, "
+        $data['actividadesPoa'] = $this->fetchAllOptional($this->pdoCon, "
             SELECT p.nombre_area, act.nombre_actividad, act.avance
             FROM poa_actividades AS act
             JOIN poa AS p ON p.id_poa = act.id_poa
@@ -303,18 +359,18 @@ class DashboardModel
             (
                 SELECT MIN(CAST(REGEXP_SUBSTR(periodo, '[0-9]{4}') AS UNSIGNED))
                 FROM users
-                WHERE periodo = (SELECT MAX(periodo) FROM users)
+                WHERE periodo = {$periodoActualSql}
             )
             AND
             (
                 SELECT MAX(CAST(REGEXP_SUBSTR(periodo, '[0-9]{4}') AS UNSIGNED))
                 FROM users
-                WHERE periodo = (SELECT MAX(periodo) FROM users)
+                WHERE periodo = {$periodoActualSql}
             )
             ORDER BY avance DESC
         ");
 
-        $data['areas'] = $this->fetchAll($this->pdoCon, "
+        $data['areas'] = $this->fetchAllOptional($this->pdoCon, "
             SELECT DISTINCT nombre_area
             FROM poa
             ORDER BY nombre_area
