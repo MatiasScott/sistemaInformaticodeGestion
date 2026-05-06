@@ -7,15 +7,31 @@ class ReporteModel
     private $pdoCon;
     private $pdoSgpro;
 
+    private $pdoSig;
+
     public function __construct()
     {
         $db = new Database();
         $this->pdoCon = $db->connect('superar1_conectados');
         $this->pdoSgpro = $db->connect('superar1_landing_sgpro');
+        $this->pdoSig = $db->connect('superarse_sig');
     }
 
     public function getCurrentPeriod()
     {
+        $stmt = $this->pdoSig->query("
+            SELECT nombre
+            FROM periodos
+            WHERE estado = 'activo'
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!empty($row['nombre'])) {
+            return $row['nombre'];
+        }
+
         $stmt = $this->pdoCon->query("SELECT MAX(periodo) AS periodo_actual FROM users");
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row['periodo_actual'] ?? null;
@@ -107,6 +123,7 @@ class ReporteModel
 
     private function getStudentsCurrentPeriod()
     {
+        $periodo = $this->pdoCon->quote($this->getCurrentPeriod());
         $sql = "SELECT
                     codigo_matricula,
                     TRIM(CONCAT(
@@ -122,7 +139,7 @@ class ReporteModel
                     estado,
                     periodo
                 FROM users
-                WHERE periodo = (SELECT MAX(periodo) FROM users)
+                WHERE periodo = {$periodo}
                 AND estado = 'Activo'
                 AND programa NOT IN (
                     'AUTO EVALUACION',
@@ -170,13 +187,15 @@ class ReporteModel
                 FROM users u
                 INNER JOIN user_roles_pivot urp ON urp.user_id = u.id
                 WHERE urp.role_id = 5
-                ORDER BY u.name ASC";
+                AND u.dedicacion IN ('TIEMPO COMPLETO', 'TIEMPO PARCIAL', 'MEDIO TIEMPO')
+                ORDER BY u.dedicacion ASC, u.name ASC";
 
         return $this->pdoSgpro->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function getScholarshipStudents()
     {
+        $periodo = $this->pdoCon->quote($this->getCurrentPeriod());
         $sql = "SELECT
                     codigo_matricula,
                     TRIM(CONCAT(
@@ -193,9 +212,9 @@ class ReporteModel
                     periodo
                 FROM users
                 WHERE estado_beca LIKE CONCAT('%', RIGHT(
-                (SELECT periodo FROM users ORDER BY periodo DESC LIMIT 1), 2
+                {$periodo}, 2
             ), '%')
-            AND periodo = (SELECT periodo FROM users ORDER BY periodo DESC LIMIT 1) AND estado ='Activo'
+            AND periodo = {$periodo} AND estado ='Activo'
                 ORDER BY periodo DESC, programa ASC, primer_apellido ASC, primer_nombre ASC";
 
         return $this->pdoCon->query($sql)->fetchAll(PDO::FETCH_ASSOC);
