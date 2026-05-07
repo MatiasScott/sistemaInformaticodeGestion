@@ -16,7 +16,8 @@ class Database
         try {
             $pdo = new PDO($dsn, $this->user, $this->pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ]);
         } catch (PDOException $e) {
             die("Error de conexión a {$database}: " . $e->getMessage());

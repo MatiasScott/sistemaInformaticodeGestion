@@ -183,15 +183,54 @@ class Controller
     // AUDITORÍA
     // ===============================
 
+    private function normalizeUtf8Text($value)
+    {
+        if (!is_string($value) || $value === '') {
+            return $value;
+        }
+
+        // Si ya es UTF-8 válido, no tocar.
+        if (preg_match('//u', $value)) {
+            return $value;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', 'Windows-1252,ISO-8859-1,UTF-8');
+            if (is_string($converted) && $converted !== '' && preg_match('//u', $converted)) {
+                return $converted;
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $converted = @iconv('Windows-1252', 'UTF-8//IGNORE', $value);
+            if (is_string($converted) && $converted !== '' && preg_match('//u', $converted)) {
+                return $converted;
+            }
+
+            $converted = @iconv('ISO-8859-1', 'UTF-8//IGNORE', $value);
+            if (is_string($converted) && $converted !== '' && preg_match('//u', $converted)) {
+                return $converted;
+            }
+        }
+
+        // Fallback defensivo: elimina bytes no imprimibles fuera de ASCII.
+        return preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $value);
+    }
+
     protected function log($modulo, $accion, $descripcion = "")
     {
-        $this->auditoria->registrar([
-            'user_id' => $this->user['id'] ?? null,
-            'modulo' => $modulo,
-            'accion' => $accion,
-            'descripcion' => $descripcion,
-            'ip' => $_SERVER['REMOTE_ADDR']
-        ]);
+        try {
+            $this->auditoria->registrar([
+                'user_id' => $this->user['id'] ?? null,
+                'modulo' => $this->normalizeUtf8Text((string)$modulo),
+                'accion' => $this->normalizeUtf8Text((string)$accion),
+                'descripcion' => $this->normalizeUtf8Text((string)$descripcion),
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? null
+            ]);
+        } catch (Throwable $e) {
+            // La auditoría no debe romper la operación principal.
+            error_log('Controller::log error: ' . $e->getMessage());
+        }
     }
 
     protected function view($view, $data = [])
