@@ -15,6 +15,13 @@ class ReporteController extends Controller
 {
     private $model;
 
+    private function clearOutputBuffers()
+    {
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+    }
+
     public function __construct()
     {
         parent::__construct();
@@ -155,7 +162,7 @@ class ReporteController extends Controller
 
         $filename = 'reporte_' . $reporteKey . '_' . date('Ymd_His') . '.pdf';
 
-        ob_end_clean();
+        $this->clearOutputBuffers();
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
@@ -244,7 +251,7 @@ class ReporteController extends Controller
 
         $filename = 'reporte_' . $reporteKey . '_' . date('Ymd_His') . '.xlsx';
 
-        ob_end_clean();
+        $this->clearOutputBuffers();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
