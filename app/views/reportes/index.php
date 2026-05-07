@@ -1,6 +1,14 @@
 <?php require BASE_PATH . '/app/views/layout/header.php'; ?>
 
 <div class="card reportes-page">
+    <?php
+    $totalRows = $totalRows ?? count($rows ?? []);
+    $page = $page ?? 1;
+    $perPage = $perPage ?? 30;
+    $totalPages = $totalPages ?? max(1, (int) ceil(($totalRows > 0 ? $totalRows : 1) / $perPage));
+    $from = $totalRows > 0 ? (($page - 1) * $perPage) + 1 : 0;
+    $to = min($page * $perPage, $totalRows);
+    ?>
     <div class="d-flex justify-between align-center mb-3 reportes-header">
         <div>
             <h2><i class="fas fa-file-export"></i> Reportes</h2>
@@ -29,20 +37,24 @@
                 </div>
 
                 <div class="btn-group">
-                    <a class="btn btn-secondary" href="<?= URL_PATH ?>reportes/export/<?= urlencode($reporteKey) ?>/excel">Descargar Excel</a>
-                    <a class="btn btn-primary" href="<?= URL_PATH ?>reportes/export/<?= urlencode($reporteKey) ?>/pdf" target="_blank">Exportar PDF</a>
+                    <a class="btn btn-secondary" href="<?= URL_PATH ?>reportes/export/<?= urlencode($reporteKey) ?>/excel">Descargar Excel (.xlsx)</a>
+                    <a class="btn btn-primary" href="<?= URL_PATH ?>reportes/export/<?= urlencode($reporteKey) ?>/pdf">Descargar PDF</a>
                 </div>
             </div>
 
             <div class="reportes-summary">
                 <div class="reportes-kpi">
                     <span>Total registros</span>
-                    <strong><?= count($rows) ?></strong>
+                    <strong><?= $totalRows ?></strong>
                 </div>
                 <div class="reportes-kpi">
                     <span>Generado</span>
                     <strong><?= date('d/m/Y H:i') ?></strong>
                 </div>
+            </div>
+
+            <div class="reportes-pagination-info">
+                Mostrando <?= $from ?> a <?= $to ?> de <?= $totalRows ?> registros.
             </div>
 
             <div class="table-container">
@@ -71,6 +83,24 @@
                     </tbody>
                 </table>
             </div>
+
+            <?php if ($totalPages > 1): ?>
+                <div class="reportes-pagination">
+                    <a class="btn btn-secondary <?= $page <= 1 ? 'disabled' : '' ?>"
+                        href="<?= $page > 1 ? URL_PATH . 'reportes?tipo=' . urlencode($reporteKey) . '&page=' . ($page - 1) : '#' ?>">
+                        Anterior
+                    </a>
+
+                    <span class="reportes-page-indicator">
+                        Página <?= $page ?> de <?= $totalPages ?>
+                    </span>
+
+                    <a class="btn btn-secondary <?= $page >= $totalPages ? 'disabled' : '' ?>"
+                        href="<?= $page < $totalPages ? URL_PATH . 'reportes?tipo=' . urlencode($reporteKey) . '&page=' . ($page + 1) : '#' ?>">
+                        Siguiente
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
