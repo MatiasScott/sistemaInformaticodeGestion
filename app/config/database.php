@@ -4,8 +4,8 @@ class Database
 {
 
     private $host = "localhost";
-    private $user = "root";
-    private $pass = "Superarse.2025";
+    private $user = "devists";
+    private $pass = "Q@822111785849oz";
     private $charset = "utf8mb4";
 
     public function connect($database = "superarse_sig")
