@@ -4,7 +4,7 @@
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
 
 // Dominio
-define('URL_PATH', $protocol . $_SERVER['HTTP_HOST'] . '/landing_sgiv2/public/');
+define('URL_PATH', $protocol . $_SERVER['HTTP_HOST'] . '/');
 
 // Ruta física del proyecto
 define('BASE_PATH', dirname(__DIR__, 2));
