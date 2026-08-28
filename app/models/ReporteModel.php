@@ -14,7 +14,7 @@ class ReporteModel
         $db = new Database();
         $this->pdoCon = $db->connect('superar1_conectados');
         $this->pdoSgpro = $db->connect('superar1_landing_sgpro');
-        $this->pdoSig = $db->connect('superarse_sig');
+        $this->pdoSig = $db->connect('superar1_sig');
     }
 
     public function getCurrentPeriod()
