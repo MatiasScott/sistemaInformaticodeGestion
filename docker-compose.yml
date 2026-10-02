@@ -1,0 +1,17 @@
+services:
+  superar1_sig:
+    build: .
+
+    container_name: superar1_sig
+
+    restart: unless-stopped
+
+    ports:
+      - "8084:80"
+
+    networks:
+      - moodle_net
+
+networks:
+  moodle_net:
+    external: true

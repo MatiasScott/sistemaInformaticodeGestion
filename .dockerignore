@@ -1,0 +1,6 @@
+.git
+.gitignore
+MANUALES
+composer.phar
+Dockerfile
+docker-compose.yml

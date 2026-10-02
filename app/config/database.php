@@ -3,12 +3,12 @@
 class Database
 {
 
-    private $host = "localhost";
-    private $user = "devists";
-    private $pass = "Q@822111785849oz";
+    private $host = "mariadb";
+    private $user = "root";
+    private $pass = "W&557012951003an";
     private $charset = "utf8mb4";
 
-    public function connect($database = "superarse_sig")
+    public function connect($database = "superar1_sig")
     {
 
         $dsn = "mysql:host={$this->host};dbname={$database};charset={$this->charset}";

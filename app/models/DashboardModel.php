@@ -11,7 +11,7 @@ class DashboardModel
     {
         $db = new Database();
 
-        $this->pdoSig = $db->connect("superarse_sig");
+        $this->pdoSig = $db->connect("superar1_sig");
         $this->pdoCon = $db->connect("superar1_conectados");
         $this->pdoSgpro = $db->connect("superar1_landing_sgpro");
     }
