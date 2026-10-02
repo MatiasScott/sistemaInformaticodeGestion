@@ -55,6 +55,13 @@ class UserModel extends Model
         return $stmt->fetch();
     }
 
+    public function registrarUltimoAcceso(int $userId): void
+    {
+        $stmt = $this->db->prepare("CALL sp_registrar_ultimo_acceso(:user_id)");
+        $stmt->execute(['user_id' => $userId]);
+        $stmt->closeCursor();
+    }
+
     public function getUserWithRolesAndPermissions($user_id)
     {
         $db = $this->db; // asumimos que Model tiene conexión

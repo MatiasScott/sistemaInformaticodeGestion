@@ -19,8 +19,9 @@ class AuthController extends Controller
             $error = "Tu cuenta está inactiva. Contacta al administrador.";
         } else {
             // Si todo está bien, procedemos
-            session_regenerate_id(true);
             $userCompleto = $userModel->getUserWithRolesAndPermissions($user['id']);
+            $userModel->registrarUltimoAcceso((int) $userCompleto['id']);
+            session_regenerate_id(true);
             $_SESSION['user_id'] = $userCompleto['id'];
             $_SESSION['LAST_ACTIVITY'] = time();
             $this->log("auth", "login", "Inicio de sesión");
