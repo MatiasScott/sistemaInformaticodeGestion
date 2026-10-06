@@ -439,15 +439,17 @@ class DashboardModel
         ")['total'];
 
         $data['conveniosVigentes'] = $this->fetchOne($this->pdoCon, "
-            SELECT estado_convenio, COUNT(*) total
+            SELECT COUNT(*) total
             FROM convenios
-            GROUP BY estado_convenio;
+            WHERE estado='Activo'
+            AND estado_convenio='vigente'
         ")['total'];
 
         $data['conveniosEjecucion'] = $this->fetchOne($this->pdoCon, "
-            SELECT en_ejecucion ,COUNT(*) total
+            SELECT COUNT(*) total
             FROM convenios
-            group by en_ejecucion;
+            WHERE estado='Activo'
+            AND en_ejecucion='si'
         ")['total'];
 
         return $data;
