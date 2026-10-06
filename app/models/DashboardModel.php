@@ -300,18 +300,21 @@ class DashboardModel
             SELECT COUNT(*) total
             FROM users
             WHERE dedicacion='TIEMPO PARCIAL'
+            AND active = 1
         ")['total'];
 
         $data['totalProfesoresTC'] = $this->fetchOne($this->pdoSgpro, "
             SELECT COUNT(*) total
             FROM users
             WHERE dedicacion='TIEMPO COMPLETO'
+            AND active = 1
         ")['total'];
 
         $data['totalProfesoresMT'] = $this->fetchOne($this->pdoSgpro, "
             SELECT COUNT(*) total
             FROM users
             WHERE dedicacion='MEDIO TIEMPO'
+            AND active = 1
         ")['total'];
 
         /* =========================
