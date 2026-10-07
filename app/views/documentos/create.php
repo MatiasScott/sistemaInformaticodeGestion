@@ -97,7 +97,9 @@
                 id="archivo"
                 required>
 
-            <small id="fileNamePreview" class="text-muted mt-2"></small>
+            <small id="fileNamePreview" class="text-muted mt-2">
+                Tamaño máximo permitido: 8 MB.
+            </small>
         </div>
 
         <!-- ===================== -->
@@ -132,5 +134,52 @@
 
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form[enctype="multipart/form-data"]');
+    const fileInput = document.getElementById('archivo');
+    const preview = document.getElementById('fileNamePreview');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const maxSize = 8 * 1024 * 1024;
+
+    if (!form || !fileInput || !submitButton) {
+        return;
+    }
+
+    fileInput.addEventListener('change', function () {
+        const file = this.files[0];
+
+        if (!file) {
+            preview.textContent = 'Tamaño máximo permitido: 8 MB.';
+            return;
+        }
+
+        if (file.size > maxSize) {
+            alert('El archivo supera el tamaño máximo permitido de 8 MB.');
+            this.value = '';
+            preview.textContent = 'Tamaño máximo permitido: 8 MB.';
+            return;
+        }
+
+        preview.textContent =
+            file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+    });
+
+    form.addEventListener('submit', function (event) {
+        const file = fileInput.files[0];
+
+        if (file && file.size > maxSize) {
+            event.preventDefault();
+            alert('El archivo supera el tamaño máximo permitido de 8 MB.');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Subiendo documento, por favor espere...';
+    });
+});
+</script>
 
 <?php require BASE_PATH . '/app/views/layout/footer.php'; ?>

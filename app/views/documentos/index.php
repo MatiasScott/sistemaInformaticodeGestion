@@ -96,7 +96,7 @@
 
                             <td class="actions">
 
-                                <a href="<?= URL_PATH ?>uploads/<?= $d['ruta_archivo'] ?>"
+                                <a href="<?= URL_PATH ?>documento/ver/<?= $d['id'] ?>"
                                     target="_blank"
                                     title="Ver Documento"
                                     class="action-view">

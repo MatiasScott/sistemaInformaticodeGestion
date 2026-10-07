@@ -119,9 +119,38 @@ class IndicadorController extends Controller
     {
         $this->authorize("indicador", "eliminar");
 
-        $this->model->delete($id);
-        $this->log("indicadores", "eliminar", "Indicador ID $id eliminado");
+        try {
+            $this->model->delete($id);
 
-        header("Location: " . URL_PATH . "indicadores");
+            $this->log(
+                "indicadores",
+                "eliminar",
+                "Indicador ID $id eliminado"
+            );
+
+            header("Location: " . URL_PATH . "indicadores");
+            exit;
+        } catch (PDOException $e) {
+            // SQLSTATE 23000: el indicador está siendo utilizado por
+            // evaluaciones u otros registros relacionados.
+            if ((string) $e->getCode() === '23000') {
+                error_log(
+                    "[IndicadorController] No se puede eliminar indicador ID {$id}: " .
+                    $e->getMessage()
+                );
+
+                $mensaje = rawurlencode(
+                    "No se puede eliminar el indicador porque está asociado a evaluaciones u otros registros del sistema."
+                );
+
+                header(
+                    "Location: " . URL_PATH . "indicadores?error=" . $mensaje
+                );
+                exit;
+            }
+
+            // No ocultar otros errores inesperados de base de datos.
+            throw $e;
+        }
     }
 }

@@ -6,8 +6,16 @@ services:
 
     restart: unless-stopped
 
+    environment:
+      TZ: America/Guayaquil
+
     ports:
       - "8084:80"
+
+    volumes:
+      - ./timezone.ini:/usr/local/etc/php/conf.d/99-timezone.ini:ro
+      - ./uploads.ini:/usr/local/etc/php/conf.d/98-uploads.ini:ro
+      - ./public/uploads:/var/www/html/public/uploads
 
     networks:
       - moodle_net

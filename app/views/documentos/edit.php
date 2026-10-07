@@ -1,4 +1,10 @@
-<?php require BASE_PATH . '/app/views/layout/header.php'; ?>
+<?php
+require BASE_PATH . '/app/views/layout/header.php';
+
+$rutaArchivoActual = BASE_PATH . '/public/uploads/' . ($documento['ruta_archivo'] ?? '');
+$archivoActualExiste = !empty($documento['ruta_archivo'])
+    && is_file($rutaArchivoActual);
+?>
 
 <div class="card">
 
@@ -7,11 +13,19 @@
     </h2>
     <hr class="mb-3">
 
-    <div class="edit-alert">
-        <i class="fas fa-info-circle"></i>
-        Está modificando una evidencia documental registrada.
-        Si no selecciona un nuevo archivo, se conservará el actual.
-    </div>
+    <?php if ($archivoActualExiste): ?>
+        <div class="edit-alert">
+            <i class="fas fa-info-circle"></i>
+            Está modificando una evidencia documental registrada.
+            Si no selecciona un nuevo archivo, se conservará el actual.
+        </div>
+    <?php else: ?>
+        <div class="edit-alert" style="border-left-color:#dc3545;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>El archivo físico de este documento no está disponible.</strong>
+            Seleccione nuevamente el archivo para reponerlo sin perder el registro existente.
+        </div>
+    <?php endif; ?>
 
     <form method="POST" enctype="multipart/form-data">
 
@@ -69,7 +83,7 @@
                 <input type="text"
                     name="proceso"
                     id="proceso"
-                    value="<?= htmlspecialchars($documento['proceso']) ?>">
+                    value="<?= htmlspecialchars($documento['proceso'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
             </div>
 
             <div class="flex-1 form-group">
@@ -77,7 +91,7 @@
                 <input type="text"
                     name="subproceso"
                     id="subproceso"
-                    value="<?= htmlspecialchars($documento['subproceso']) ?>">
+                    value="<?= htmlspecialchars($documento['subproceso'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
             </div>
         </div>
 
@@ -86,7 +100,7 @@
             <input type="text"
                 name="codigo"
                 id="codigo"
-                value="<?= htmlspecialchars($documento['codigo']) ?>">
+                value="<?= htmlspecialchars($documento['codigo'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         </div>
 
         <!-- ===================== -->
@@ -94,16 +108,40 @@
 
         <div class="form-group mb-3">
             <label>Archivo Actual:</label>
-            <div class="file-current">
-                <i class="fas fa-file-alt"></i>
-                <?= htmlspecialchars($documento['nombre_archivo']) ?>
-            </div>
+
+            <?php if ($archivoActualExiste): ?>
+                <div class="file-current">
+                    <i class="fas fa-file-alt"></i>
+                    <?= htmlspecialchars($documento['nombre_archivo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+                </div>
+            <?php else: ?>
+                <div class="file-current" style="border-color:#dc3545;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Archivo no disponible en el servidor</strong>
+                    <?php if (!empty($documento['nombre_archivo'])): ?>
+                        — <?= htmlspecialchars($documento['nombre_archivo'], ENT_QUOTES, 'UTF-8') ?>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="form-group mb-4">
-            <label for="archivo">Cambiar Archivo (Opcional):</label>
-            <input type="file" name="archivo" id="archivo">
-            <small id="fileNamePreview" class="text-muted mt-2"></small>
+            <label for="archivo">
+                <?= $archivoActualExiste ? 'Cambiar Archivo (Opcional):' : 'Reponer Archivo (Obligatorio):' ?>
+            </label>
+
+            <input type="file"
+                name="archivo"
+                id="archivo"
+                <?= $archivoActualExiste ? '' : 'required' ?>>
+
+            <small id="fileNamePreview" class="text-muted mt-2">
+                <?php if ($archivoActualExiste): ?>
+                    Tamaño máximo permitido: 8 MB.
+                <?php else: ?>
+                    Debe seleccionar el archivo correspondiente. Tamaño máximo permitido: 8 MB.
+                <?php endif; ?>
+            </small>
         </div>
 
         <!-- ===================== -->
@@ -131,7 +169,7 @@
             <label for="observaciones">Observaciones:</label>
             <textarea name="observaciones"
                 id="observaciones"
-                rows="3"><?= htmlspecialchars($documento['observaciones']) ?></textarea>
+                rows="3"><?= htmlspecialchars($documento['observaciones'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
         </div>
 
         <!-- ===================== -->
@@ -147,5 +185,56 @@
 
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form[enctype="multipart/form-data"]');
+    const fileInput = document.getElementById('archivo');
+    const preview = document.getElementById('fileNamePreview');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const maxSize = 8 * 1024 * 1024;
+    const archivoActualExiste = <?= $archivoActualExiste ? 'true' : 'false' ?>;
+    const mensajeSinArchivo = archivoActualExiste
+        ? 'Tamaño máximo permitido: 8 MB.'
+        : 'Debe seleccionar el archivo correspondiente. Tamaño máximo permitido: 8 MB.';
+
+    if (!form || !fileInput || !submitButton) {
+        return;
+    }
+
+    fileInput.addEventListener('change', function () {
+        const file = this.files[0];
+
+        if (!file) {
+            preview.textContent = mensajeSinArchivo;
+            return;
+        }
+
+        if (file.size > maxSize) {
+            alert('El archivo supera el tamaño máximo permitido de 8 MB.');
+            this.value = '';
+            preview.textContent = mensajeSinArchivo;
+            return;
+        }
+
+        preview.textContent =
+            file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+    });
+
+    form.addEventListener('submit', function (event) {
+        const file = fileInput.files[0];
+
+        if (file && file.size > maxSize) {
+            event.preventDefault();
+            alert('El archivo supera el tamaño máximo permitido de 8 MB.');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Guardando, por favor espere...';
+    });
+});
+</script>
 
 <?php require BASE_PATH . '/app/views/layout/footer.php'; ?>

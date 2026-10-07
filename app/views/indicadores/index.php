@@ -8,6 +8,13 @@
         </a>
     </div>
 
+    <?php if (!empty($_GET['error'])): ?>
+        <div class="alert alert-danger mb-3">
+            <i class="fas fa-exclamation-triangle"></i>
+            <?= htmlspecialchars((string) $_GET['error'], ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endif; ?>
+
     <!-- Buscador -->
     <div class="search-container mb-3">
         <div class="form-group">
