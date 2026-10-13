@@ -9,7 +9,21 @@ class EvaluacionIndicadorModel extends Model
 
     public function create($data)
     {
-        return $this->insert($data);
+        try {
+            return $this->insert($data);
+        } catch (PDOException $e) {
+            if (
+                ($e->errorInfo[1] ?? null) == 1062 &&
+                strpos($e->errorInfo[2] ?? '', 'uk_periodo_indicador') !== false
+            ) {
+                throw new DomainException(
+                    "Ya existe una evaluación para este período e indicador. Revise la evaluación existente antes de crear otra.",
+                    0,
+                    $e
+                );
+            }
+            throw $e;
+        }
     }
 
     public function getAll()

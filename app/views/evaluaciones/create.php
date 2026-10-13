@@ -21,7 +21,8 @@
                 <label for="periodo_id">Periodo:</label>
                 <select id="periodo_id" name="periodo_id" required>
                     <?php foreach (($periodos ?? []) as $p): ?>
-                        <option value="<?= $p['id'] ?>">
+                        <option value="<?= $p['id'] ?>"
+                            <?= (string) ($formData['periodo_id'] ?? '') === (string) $p['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($p['nombre']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -32,7 +33,8 @@
                 <label for="indicador_id">Indicador:</label>
                 <select id="indicador_id" name="indicador_id" required>
                     <?php foreach (($indicadores ?? []) as $i): ?>
-                        <option value="<?= $i['id'] ?>">
+                        <option value="<?= $i['id'] ?>"
+                            <?= (string) ($formData['indicador_id'] ?? '') === (string) $i['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($i['nombre']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -43,7 +45,7 @@
         <h3 class="section-title">Observaciones</h3>
         <div class="form-group mb-4">
             <label for="observaciones">Observaciones (opcional):</label>
-            <textarea id="observaciones" name="observaciones" rows="3"></textarea>
+            <textarea id="observaciones" name="observaciones" rows="3"><?= htmlspecialchars($formData['observaciones'] ?? '') ?></textarea>
         </div>
 
         <div class="btn-group mt-3">
@@ -58,3 +60,11 @@
 </div>
 
 <?php require BASE_PATH . '/app/views/layout/footer.php'; ?>
+
+<?php if (!empty($error)): ?>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        showWarningModal('Evaluación repetida', <?= json_encode($error, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+    });
+</script>
+<?php endif; ?>

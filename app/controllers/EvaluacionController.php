@@ -87,12 +87,20 @@ class EvaluacionController extends Controller
     {
         $this->authorize("evaluacion", "crear");
 
+        $error = null;
+        $formData = $_POST;
         if ($_POST) {
             // Procesar formulario de creación
-            $id = $this->crearEvaluacionPendiente($_POST);
-            $this->log("evaluaciones", "crear", "Evaluación ID $id creada");
-            header("Location: " . URL_PATH . "evaluaciones");
-            exit;
+            try {
+                $id = $this->crearEvaluacionPendiente($_POST);
+            } catch (DomainException $e) {
+                $error = $e->getMessage();
+            }
+            if ($error === null) {
+                $this->log("evaluaciones", "crear", "Evaluación ID $id creada");
+                header("Location: " . URL_PATH . "evaluaciones");
+                exit;
+            }
         }
 
         $periodoModel = new PeriodoModel();
@@ -101,7 +109,7 @@ class EvaluacionController extends Controller
         $periodos = $periodoModel->getAll();
         $indicadores = $indicadorModel->getAll();
 
-        $this->view('evaluaciones/create', compact('periodos', 'indicadores'));
+        $this->view('evaluaciones/create', compact('periodos', 'indicadores', 'error', 'formData'));
     }
 
     public function edit($id)
