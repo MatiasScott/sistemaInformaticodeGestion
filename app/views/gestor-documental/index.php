@@ -64,14 +64,14 @@
                             <td class="actions">
 
                                 <!-- VER -->
-                                <a href="<?= URL_PATH ?>documentos/ver/<?= $r['id'] ?>"
+                                <a href="<?= URL_PATH ?>documento/ver/<?= $r['id'] ?>"
                                     class="action-view"
                                     target="_blank">
                                     <i class="fas fa-eye"></i> Ver
                                 </a>
 
                                 <!-- DESCARGAR -->
-                                <a href="<?= URL_PATH ?>documentos/descargar/<?= $r['id'] ?>"
+                                <a href="<?= URL_PATH ?>documento/descargar/<?= $r['id'] ?>"
                                     class="action-edit">
                                     <i class="fas fa-download"></i> Descargar
                                 </a>

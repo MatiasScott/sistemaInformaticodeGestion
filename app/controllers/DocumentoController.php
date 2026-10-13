@@ -44,25 +44,72 @@ class DocumentoController extends Controller
         // VALIDAR ARCHIVO
         // ==============================
 
-        if (!isset($_FILES['archivo']) || $_FILES['archivo']['error'] !== UPLOAD_ERR_OK) {
-            die("Error al subir el archivo.");
+        if (!isset($_FILES['archivo'])) {
+            die("Debe seleccionar un archivo.");
         }
 
         $archivo = $_FILES['archivo'];
 
-        // Tamaño máximo 5MB
-        $maxSize = 5 * 1024 * 1024;
-        if ($archivo['size'] > $maxSize) {
-            die("El archivo supera el tamaño permitido (5MB).");
+        switch ($archivo['error']) {
+            case UPLOAD_ERR_OK:
+                break;
+
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                die("El archivo supera el tamaño máximo permitido de 8 MB.");
+
+            case UPLOAD_ERR_PARTIAL:
+                die("La carga del archivo quedó incompleta. Intente nuevamente.");
+
+            case UPLOAD_ERR_NO_FILE:
+                die("Debe seleccionar un archivo.");
+
+            default:
+                die("Ocurrió un error durante la carga del archivo.");
         }
 
-        // Extensiones permitidas
-        $extensionesPermitidas = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'];
+        // Tamaño máximo 8 MB
+        $maxSize = 8 * 1024 * 1024;
+        if ($archivo['size'] > $maxSize) {
+            die("El archivo supera el tamaño máximo permitido de 8 MB.");
+        }
+
+        // Extensiones y tipos MIME permitidos
+        $tiposPermitidos = [
+            'pdf'  => ['application/pdf'],
+            'doc'  => ['application/msword'],
+            'docx' => [
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/zip'
+            ],
+            'xls'  => [
+                'application/vnd.ms-excel',
+                'application/CDFV2',
+                'application/x-cdf'
+            ],
+            'xlsx' => [
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/zip'
+            ],
+            'png'  => ['image/png'],
+            'jpg'  => ['image/jpeg'],
+            'jpeg' => ['image/jpeg'],
+        ];
 
         $extension = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
 
-        if (!in_array($extension, $extensionesPermitidas)) {
+        if (!isset($tiposPermitidos[$extension])) {
             die("Tipo de archivo no permitido.");
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $tipoArchivo = $finfo->file($archivo['tmp_name']);
+
+        if (
+            $tipoArchivo === false
+            || !in_array($tipoArchivo, $tiposPermitidos[$extension], true)
+        ) {
+            die("El contenido del archivo no corresponde con un tipo permitido.");
         }
 
         // ==============================
@@ -77,8 +124,6 @@ class DocumentoController extends Controller
 
         // Limpiar nombre (quitar caracteres raros)
         $nombrePersonalizado = preg_replace('/[^A-Za-z0-9áéíóúÁÉÍÓÚñÑ_\- ]/', '', $nombrePersonalizado);
-
-        $tipoArchivo = $archivo['type'];
 
         // Nombre físico único en servidor
         $nuevoNombre = uniqid('doc_') . '.' . $extension;
@@ -137,6 +182,19 @@ class DocumentoController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+            $rutaArchivoActual = BASE_PATH . "/public/uploads/" . ($documento['ruta_archivo'] ?? '');
+            $archivoActualExiste = !empty($documento['ruta_archivo'])
+                && is_file($rutaArchivoActual);
+
+            $hayNuevoArchivo = isset($_FILES['archivo'])
+                && $_FILES['archivo']['error'] !== UPLOAD_ERR_NO_FILE;
+
+            // Si el registro existe pero perdió su archivo físico,
+            // es obligatorio reponerlo antes de guardar cambios.
+            if (!$archivoActualExiste && !$hayNuevoArchivo) {
+                die("El archivo físico de este documento no está disponible. Debe seleccionar un archivo para reponerlo.");
+            }
+
             // Datos base (sin tocar archivo todavía)
             $data = [
                 'periodo_id' => $_POST['periodo_id'],
@@ -152,33 +210,90 @@ class DocumentoController extends Controller
             // ===============================
             // SI SUBEN NUEVO ARCHIVO
             // ===============================
-            if (!empty($_FILES['archivo']['name'])) {
+            if ($hayNuevoArchivo) {
 
-                $allowed = ['application/pdf', 'image/jpeg', 'image/png'];
-                $maxSize = 10 * 1024 * 1024;
+                $archivo = $_FILES['archivo'];
+
+                switch ($archivo['error']) {
+                    case UPLOAD_ERR_OK:
+                        break;
+
+                    case UPLOAD_ERR_INI_SIZE:
+                    case UPLOAD_ERR_FORM_SIZE:
+                        die("El archivo supera el tamaño máximo permitido de 8 MB.");
+
+                    case UPLOAD_ERR_PARTIAL:
+                        die("La carga del archivo quedó incompleta. Intente nuevamente.");
+
+                    default:
+                        die("Ocurrió un error durante la carga del archivo.");
+                }
+
+                $maxSize = 8 * 1024 * 1024;
+
+                if ($archivo['size'] > $maxSize) {
+                    die("El archivo supera el tamaño máximo permitido de 8 MB.");
+                }
+
+                $tiposPermitidos = [
+                    'pdf'  => ['application/pdf'],
+                    'doc'  => ['application/msword'],
+                    'docx' => [
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/zip'
+                    ],
+                    'xls'  => [
+                        'application/vnd.ms-excel',
+                        'application/CDFV2',
+                        'application/x-cdf'
+                    ],
+                    'xlsx' => [
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/zip'
+                    ],
+                    'png'  => ['image/png'],
+                    'jpg'  => ['image/jpeg'],
+                    'jpeg' => ['image/jpeg'],
+                ];
+
+                $ext = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
+
+                if (!isset($tiposPermitidos[$ext])) {
+                    die("Tipo de archivo no permitido.");
+                }
+
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $tipoArchivo = $finfo->file($archivo['tmp_name']);
 
                 if (
-                    in_array($_FILES['archivo']['type'], $allowed)
-                    && $_FILES['archivo']['size'] <= $maxSize
+                    $tipoArchivo === false
+                    || !in_array($tipoArchivo, $tiposPermitidos[$ext], true)
                 ) {
-
-                    // 🔥 Eliminar archivo anterior
-                    $rutaAnterior = BASE_PATH . "/public/uploads/" . $documento['ruta_archivo'];
-                    if (file_exists($rutaAnterior)) {
-                        unlink($rutaAnterior);
-                    }
-
-                    $ext = pathinfo($_FILES['archivo']['name'], PATHINFO_EXTENSION);
-                    $nuevoNombre = uniqid('doc_') . "." . $ext;
-                    $ruta = BASE_PATH . "/public/uploads/" . $nuevoNombre;
-
-                    move_uploaded_file($_FILES['archivo']['tmp_name'], $ruta);
-
-                    // Guardar nuevos datos de archivo
-                    $data['nombre_archivo'] = $_FILES['archivo']['name'];
-                    $data['ruta_archivo'] = $nuevoNombre;
-                    $data['tipo_archivo'] = $_FILES['archivo']['type'];
+                    die("El contenido del archivo no corresponde con un tipo permitido.");
                 }
+
+                $nuevoNombre = uniqid('doc_') . "." . $ext;
+                $ruta = BASE_PATH . "/public/uploads/" . $nuevoNombre;
+
+                // Primero guardar correctamente el archivo nuevo.
+                if (!move_uploaded_file($archivo['tmp_name'], $ruta)) {
+                    die("No se pudo guardar el nuevo archivo. El documento anterior se conserva.");
+                }
+
+                // Solo después de guardar el nuevo eliminamos el anterior.
+                $rutaAnterior = BASE_PATH . "/public/uploads/" . $documento['ruta_archivo'];
+
+                if (
+                    !empty($documento['ruta_archivo'])
+                    && $rutaAnterior !== $ruta
+                    && file_exists($rutaAnterior)
+                ) {
+                    unlink($rutaAnterior);
+                }
+
+                $data['nombre_archivo'] = $archivo['name'];
+                $data['ruta_archivo'] = $nuevoNombre;
+                $data['tipo_archivo'] = $tipoArchivo;
             }
 
             $docModel->update($id, $data);

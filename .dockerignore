@@ -5,3 +5,6 @@ MANUALES
 composer.phar
 Dockerfile
 docker-compose.yml
+
+# Documentos persistentes
+public/uploads
