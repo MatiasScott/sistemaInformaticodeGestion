@@ -78,18 +78,20 @@
                             </td>
 
                             <td class="text-center">
-                                <?= htmlspecialchars($ev['valor_calculado']) ?>
+                                <?= htmlspecialchars($ev['valor_calculado'] ?? 'Sin evaluar') ?>
                             </td>
 
                             <td class="text-center">
                                 <span class="badge badge-primary">
-                                    <?= htmlspecialchars($ev['porcentaje_obtenido']) ?>%
+                                    <?= isset($ev['porcentaje_obtenido']) ? htmlspecialchars($ev['porcentaje_obtenido']) . '%' : 'Sin evaluar' ?>
                                 </span>
                             </td>
 
                             <td class="text-center">
                                 <?php $dif = (float)($ev['diferencia'] ?? 0); ?>
-                                <?php if ($dif > 0): ?>
+                                <?php if (!isset($ev['diferencia'])): ?>
+                                    <span class="badge badge-secondary">Sin evaluar</span>
+                                <?php elseif ($dif > 0): ?>
                                     <span class="status-badge status-activo" title="Supera la meta">
                                         +<?= htmlspecialchars(number_format($dif, 2)) ?>
                                     </span>

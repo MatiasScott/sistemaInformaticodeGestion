@@ -9,8 +9,20 @@ services:
     ports:
       - "8084:80"
 
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: mariadb
+
+    volumes:
+      - sig_uploads:/var/www/html/public/uploads
+
     networks:
       - moodle_net
+
+volumes:
+  sig_uploads:
 
 networks:
   moodle_net:

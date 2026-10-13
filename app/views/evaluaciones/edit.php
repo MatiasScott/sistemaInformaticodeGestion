@@ -6,14 +6,15 @@ require_once BASE_PATH . '/app/models/IndicadorModel.php';
 $indicadorModel = new IndicadorModel();
 
 $indicador = $indicadorModel->getById($evaluacion['indicador_id']);
+$formulaIndicador = trim((string) ($indicador['formula'] ?? ''));
 
 $variables = [];
 if ($indicador['tipo'] === 'cuantitativo') {
     $variables = $indicadorModel->getVariables($indicador['id']);
 
     // Si no hay variables en la tabla, extraer de la fórmula
-    if (empty($variables) && !empty($indicador['formula'])) {
-        preg_match_all('/\b[A-Z]+\b/', $indicador['formula'], $matches);
+    if (empty($variables) && $formulaIndicador !== '') {
+        preg_match_all('/\b[A-Z]+\b/', $formulaIndicador, $matches);
         $vars_from_formula = array_unique($matches[0]);
         foreach ($vars_from_formula as $var) {
             $variables[] = ['nombre_variable' => $var];
@@ -72,12 +73,12 @@ if (!empty($evaluacion['valor_ingresado'])) {
 
         <!-- ===================== -->
 
-        <div class="formula-box mb-4">
-            <strong>Fórmula del Indicador:</strong><br>
-            <?= htmlspecialchars($indicador['formula']) ?>
-        </div>
-
         <?php if ($indicador['tipo'] === 'cuantitativo'): ?>
+
+            <div class="formula-box mb-4">
+                <strong>Fórmula del Indicador:</strong><br>
+                <?= htmlspecialchars($formulaIndicador !== '' ? $formulaIndicador : 'No hay una fórmula configurada para este indicador.') ?>
+            </div>
 
             <h3 class="section-title">Variables del Indicador</h3>
 
@@ -91,10 +92,30 @@ if (!empty($evaluacion['valor_ingresado'])) {
                         required>
                 </div>
             <?php endforeach; ?>
+        <?php else: ?>
+
+            <?php $escalaSeleccionada = $valores_previos['escala_id'] ?? ''; ?>
+            <h3 class="section-title">Escala Cualitativa</h3>
+            <div class="scale-info">
+                Seleccione la categoría que describe el resultado. El porcentaje es el valor de la
+                escala × 100: 0 = 0 %, 0.35 = 35 %, 0.70 = 70 % y 1 = 100 %.
+                La diferencia se calcula respecto a 1 (cumplimiento completo), no respecto al estándar del indicador.
+            </div>
+            <div class="form-group mb-3">
+                <label for="escala_cualitativa_id">Resultado:</label>
+                <select id="escala_cualitativa_id" name="escala_cualitativa_id" required>
+                    <option value="">Seleccione una escala activa</option>
+                    <?php foreach (($escalasCualitativas ?? []) as $escala): ?>
+                        <option value="<?= (int) $escala['id'] ?>"
+                            data-valor="<?= htmlspecialchars($escala['valor']) ?>"
+                            <?= (string) $escalaSeleccionada === (string) $escala['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($escala['nombre']) ?> (<?= htmlspecialchars($escala['valor']) ?> = <?= number_format((float) $escala['valor'] * 100, 2) ?> %)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
 
         <?php endif; ?>
-
-        <?php if ($evaluacion['valor_calculado']): ?>
 
             <hr>
 
@@ -133,9 +154,6 @@ if (!empty($evaluacion['valor_ingresado'])) {
                     class="bg-light">
             </div>
 
-        <?php endif; ?>
-</div>
-
 <!-- ===================== -->
 <h3 class="section-title">Estado y Observaciones</h3>
 
@@ -153,7 +171,7 @@ if (!empty($evaluacion['valor_ingresado'])) {
     <label for="observaciones">Observaciones:</label>
     <textarea name="observaciones"
         id="observaciones"
-        rows="3"><?= htmlspecialchars($evaluacion['observaciones']) ?></textarea>
+        rows="3"><?= htmlspecialchars($evaluacion['observaciones'] ?? '') ?></textarea>
 </div>
 
 <!-- ===================== -->
@@ -173,30 +191,77 @@ if (!empty($evaluacion['valor_ingresado'])) {
 <script>
     document.addEventListener("DOMContentLoaded", function() {
 
-        const formula = "<?= addslashes($indicador['formula']) ?>";
-        const estandar = <?= $indicador['valor_estandar'] ?>;
+        const formula = <?= json_encode($formulaIndicador) ?>;
+        const cualitativo = <?= json_encode($indicador['tipo'] === 'cualitativo') ?>;
+        const estandar = cualitativo ? 1 : <?= json_encode((float) ($indicador['valor_estandar'] ?? 0)) ?>;
+        const decimales = <?= json_encode((int) ($indicador['decimales'] ?? 0)) ?>;
+        const escalaSelect = document.getElementById("escala_cualitativa_id");
+        const mensaje = document.createElement("p");
+        mensaje.className = "alert alert-danger";
+        mensaje.hidden = true;
+        document.getElementById("valor_calculado").parentElement.appendChild(mensaje);
 
         const inputs = document.querySelectorAll("input[name^='variables']");
 
         inputs.forEach(input => {
             input.addEventListener("input", calcular);
         });
+        if (escalaSelect) {
+            escalaSelect.addEventListener("change", calcular);
+        }
+
+        function limpiar(error = "") {
+            ["valor_calculado", "porcentaje_obtenido", "diferencia"].forEach(id => {
+                document.getElementById(id).value = "";
+            });
+            document.getElementById("estado_auto").value = "pendiente";
+            document.querySelector('input[name="estado"]').value = "pendiente";
+            mensaje.textContent = error;
+            mensaje.hidden = !error;
+        }
 
         function calcular() {
-
-            let expr = formula;
-
-            inputs.forEach(input => {
-                let nombre = input.name.match(/\[(.*?)\]/)[1];
-                let valor = parseFloat(input.value) || 0;
-                expr = expr.replaceAll(nombre, valor);
-            });
-
+            mensaje.hidden = true;
             try {
-
-                let resultado = eval(expr);
-                let porcentajeNum = (resultado / estandar) * 100;
-                porcentajeNum = Math.min(100, porcentajeNum);
+                let resultado;
+                if (cualitativo) {
+                    if (!escalaSelect.value) {
+                        limpiar();
+                        return;
+                    }
+                    resultado = Number(escalaSelect.selectedOptions[0].dataset.valor);
+                    if (!Number.isFinite(resultado) || resultado < 0 || resultado > 1) {
+                        throw new Error("La escala debe tener un valor entre 0 y 1.");
+                    }
+                } else {
+                    if (!formula || estandar <= 0) {
+                        throw new Error("Configure una fórmula y un valor estándar mayor que cero.");
+                    }
+                    if (Array.from(inputs).some(input => input.value.trim() === "")) {
+                        limpiar();
+                        return;
+                    }
+                    const valores = new Map(Array.from(inputs, input => [
+                        input.name.match(/\[(.*?)\]/)[1], Number(input.value)
+                    ]));
+                    const expr = formula.replace(/\b[A-Z]+\b/g, nombre => {
+                        const valor = valores.get(nombre);
+                        if (!Number.isFinite(valor)) {
+                            throw new Error(`Ingrese un valor válido para ${nombre}.`);
+                        }
+                        return String(valor);
+                    });
+                    if (!/^[\d\s.+*/()%eE-]+$/.test(expr)) {
+                        throw new Error("La fórmula contiene una expresión no válida.");
+                    }
+                    resultado = eval(expr);
+                    if (!Number.isFinite(resultado)) {
+                        throw new Error("La fórmula no produce un resultado válido. Revise los valores y las divisiones por cero.");
+                    }
+                    const factor = 10 ** decimales;
+                    resultado = Math.sign(resultado) * Math.round(Math.abs(resultado) * factor) / factor;
+                }
+                let porcentajeNum = Math.min(100, Math.round((resultado / estandar) * 10000) / 100);
                 let diferencia = resultado - estandar;
 
                 let resultadoFmt = resultado.toFixed(2);
@@ -221,7 +286,7 @@ if (!empty($evaluacion['valor_ingresado'])) {
                 }
 
             } catch (e) {
-                console.log("Error en fórmula");
+                limpiar(e.message || "No se pudo calcular el resultado.");
             }
         }
 

@@ -9,7 +9,7 @@
 
     <div class="scale-info">
         <i class="fas fa-info-circle"></i>
-        <strong>Consejo:</strong> Las escalas cualitativas permiten traducir puntajes numéricos a etiquetas descriptivas (ej: 100 = Excelente). Asegúrese de que los valores no se dupliquen.
+        <strong>Consejo:</strong> Asigne valores entre 0 y 1. El porcentaje de cumplimiento es el valor × 100 (por ejemplo, 0.70 = 70 % y 1 = 100 %).
     </div>
 
     <form method="POST">
@@ -35,11 +35,13 @@
                     type="number"
                     id="valor"
                     name="valor"
-                    placeholder="Ej: 95.00"
+                    placeholder="Ej: 0.70"
                     value="<?= htmlspecialchars($data['valor'] ?? '') ?>"
                     step="0.01"
+                    min="0"
+                    max="1"
                     required>
-                <small class="text-muted">Use decimales si es necesario (ej: 4.5).</small>
+                <small class="text-muted">0 representa 0 % y 1 representa 100 %.</small>
             </div>
 
             <div class="flex-1 form-group">

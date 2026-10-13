@@ -52,26 +52,26 @@ class SubcriterioModel extends Model {
         $indicadores = $indicadorModel->getBySubcriterio($subcriterio_id);
 
         if (empty($indicadores)) {
-            return; // No hay indicadores, no calcular
+            $this->update($subcriterio_id, ['avance' => 0]);
+            return;
         }
 
-        $total_porcentaje = 0;
-        $count = 0;
+        $total_ponderado = 0;
+        $peso_total = 0;
 
         foreach ($indicadores as $indicador) {
-            // Obtener la evaluación más reciente del indicador en el periodo
+            $peso = (float) ($indicador['peso'] ?? 0);
+            $peso_total += $peso;
+
             $evaluacion = $this->getEvaluacionIndicador($indicador['id'], $periodo_id);
-            if ($evaluacion) {
-                $total_porcentaje += $evaluacion['porcentaje_obtenido'];
-                $count++;
+            if ($evaluacion && $peso > 0) {
+                $total_ponderado += (float) $evaluacion['porcentaje_obtenido'] * $peso;
             }
         }
 
-        if ($count > 0) {
-            $avance = round($total_porcentaje / $count, 2);
-        } else {
-            $avance = 0; // O null, pero según usuario, entre 0 y 100
-        }
+        $avance = $peso_total > 0
+            ? round($total_ponderado / $peso_total, 2)
+            : 0;
 
         // Actualizar el avance del subcriterio
         $this->update($subcriterio_id, ['avance' => $avance]);

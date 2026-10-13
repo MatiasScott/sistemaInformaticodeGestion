@@ -7,6 +7,7 @@ require_once BASE_PATH . '/app/models/PlanMejoraModel.php';
 require_once BASE_PATH . '/app/models/PeriodoModel.php';
 require_once BASE_PATH . '/app/models/SubcriterioModel.php';
 require_once BASE_PATH . '/app/models/CriterioModel.php';
+require_once BASE_PATH . '/app/models/EscalaCualitativaModel.php';
 
 class EvaluacionController extends Controller
 {
@@ -88,9 +89,10 @@ class EvaluacionController extends Controller
 
         if ($_POST) {
             // Procesar formulario de creación
-            $id = $this->procesarEvaluacion($_POST);
+            $id = $this->crearEvaluacionPendiente($_POST);
             $this->log("evaluaciones", "crear", "Evaluación ID $id creada");
             header("Location: " . URL_PATH . "evaluaciones");
+            exit;
         }
 
         $periodoModel = new PeriodoModel();
@@ -141,11 +143,18 @@ class EvaluacionController extends Controller
 
         $periodoModel = new PeriodoModel();
         $indicadorModel = new IndicadorModel();
+        $escalaModel = new EscalaCualitativaModel();
 
         $periodos = $periodoModel->getAll();
         $indicadores = $indicadorModel->getAll();
+        $escalasCualitativas = array_values(array_filter(
+            $escalaModel->getByPeriodo($evaluacion['periodo_id']),
+            function ($escala) {
+                return strtolower((string) ($escala['estado'] ?? '')) === 'activo';
+            }
+        ));
 
-        $this->view('evaluaciones/edit', compact('evaluacion', 'periodos', 'indicadores'));
+        $this->view('evaluaciones/edit', compact('evaluacion', 'periodos', 'indicadores', 'escalasCualitativas'));
     }
 
     public function delete($id)
@@ -153,10 +162,17 @@ class EvaluacionController extends Controller
         $this->authorize("evaluacion", "eliminar");
 
         $evaluacionModel = new EvaluacionIndicadorModel();
+        $evaluacion = $evaluacionModel->getFullById($id);
+        $indicadorModel = new IndicadorModel();
+        $indicador = $evaluacion ? $indicadorModel->getById($evaluacion['indicador_id']) : null;
         $evaluacionModel->delete($id);
+        if ($evaluacion && $indicador) {
+            $this->recalcularAvances((int) $indicador['id'], (int) $evaluacion['periodo_id']);
+        }
         $this->log("evaluaciones", "eliminar", "Evaluación ID $id eliminada");
 
         header("Location: " . URL_PATH . "evaluaciones");
+        exit;
     }
 
     public function evaluar($indicador_id)
@@ -191,15 +207,17 @@ class EvaluacionController extends Controller
         // ===============================
         // VALIDACIONES
         // ===============================
-        if (!isset($_POST['valor'], $_POST['periodo_id'])) {
+        if (
+            !isset($_POST['periodo_id']) ||
+            ($indicador['tipo'] === 'cuantitativo' && !isset($_POST['valor']))
+        ) {
             die("Datos incompletos.");
         }
 
-        $valor = trim($_POST['valor']);
         $periodo_id = (int) $_POST['periodo_id'];
         $observaciones = htmlspecialchars($_POST['observaciones'] ?? '');
 
-        if ($indicador['valor_estandar'] <= 0) {
+        if ($indicador['tipo'] === 'cuantitativo' && $indicador['valor_estandar'] <= 0) {
             die("Valor estándar inválido.");
         }
 
@@ -208,21 +226,30 @@ class EvaluacionController extends Controller
         // ===============================
 
         if ($indicador['tipo'] === 'cuantitativo') {
+            $valor = trim($_POST['valor']);
 
             if (!is_numeric($valor)) {
                 die("Valor inválido.");
             }
 
             $valor_calculado = (float) $valor;
+            $valor_ingresado = $valor;
         } else {
-            // La evaluación cualitativa no usa escalas en este flujo.
-            $valor_calculado = 0.0;
+            $escala = $this->obtenerEscalaCualitativa(
+                $_POST['escala_cualitativa_id'] ?? 0,
+                $periodo_id
+            );
+            $valor_calculado = (float) $escala['valor'];
+            $valor_ingresado = json_encode([
+                'tipo' => 'cualitativo',
+                'escala_id' => (int) $escala['id'],
+                'nombre' => $escala['nombre']
+            ]);
         }
 
-        $porcentaje = ($valor_calculado / $indicador['valor_estandar']) * 100;
-        $porcentaje = min(100, round($porcentaje, 2));
-
-        $diferencia = $valor_calculado - $indicador['valor_estandar'];
+        $resultado = $this->calcularResultado($indicador, $valor_calculado);
+        $porcentaje = $resultado['porcentaje'];
+        $diferencia = $resultado['diferencia'];
         $estado = ($porcentaje >= 100) ? 'aprobado' : 'rechazado';
 
         // ===============================
@@ -231,7 +258,7 @@ class EvaluacionController extends Controller
         $evaluacion_id = $evaluacionModel->create([
             'periodo_id' => $periodo_id,
             'indicador_id' => $indicador_id,
-            'valor_ingresado' => $valor,
+            'valor_ingresado' => $valor_ingresado,
             'valor_calculado' => $valor_calculado,
             'porcentaje_obtenido' => $porcentaje,
             'diferencia' => $diferencia,
@@ -240,12 +267,7 @@ class EvaluacionController extends Controller
             'evaluado_por' => $this->user['id']
         ]);
 
-        // Calcular avances
-        $subcriterioModel = new SubcriterioModel();
-        $criterioModel = new CriterioModel();
-        $subcriterioModel->calcularAvance($indicador['subcriterio_id'], $periodo_id);
-        $subcriterio = $subcriterioModel->getById($indicador['subcriterio_id']);
-        $criterioModel->calcularAvance($subcriterio['criterio_id'], $periodo_id);
+        $this->recalcularAvances((int) $indicador_id, $periodo_id);
 
         // ===============================
         // PLAN DE MEJORA AUTOMÁTICO
@@ -293,16 +315,99 @@ class EvaluacionController extends Controller
         $response = [
             'tipo' => $indicador['tipo'],
             'formula' => $indicador['formula'] ?? '',
+            'valor_estandar' => $indicador['valor_estandar'] ?? null,
             'variables' => []
         ];
 
         if ($indicador['tipo'] === 'cuantitativo') {
             // Extract variables from formula
-            preg_match_all('/[A-Z]/', $indicador['formula'], $matches);
-            $response['variables'] = array_unique($matches[0]);
+            preg_match_all('/\b[A-Z]+\b/', $indicador['formula'] ?? '', $matches);
+            $response['variables'] = array_values(array_unique($matches[0]));
+        } else {
+            $escalaModel = new EscalaCualitativaModel();
+            $response['escalas'] = array_values(array_filter(
+                $escalaModel->getByPeriodo($periodo_id),
+                function ($escala) {
+                    return strtolower((string) ($escala['estado'] ?? '')) === 'activo';
+                }
+            ));
         }
 
         echo json_encode($response);
+    }
+
+    private function obtenerEscalaCualitativa($escala_id, $periodo_id)
+    {
+        $escalaModel = new EscalaCualitativaModel();
+        $escala = $escalaModel->getById((int) $escala_id);
+
+        if (
+            !$escala ||
+            (int) $escala['periodo_id'] !== (int) $periodo_id ||
+            strtolower((string) ($escala['estado'] ?? '')) !== 'activo'
+        ) {
+            die("La escala cualitativa seleccionada no está disponible para este período.");
+        }
+
+        if (!is_numeric($escala['valor']) || (float) $escala['valor'] < 0 || (float) $escala['valor'] > 1) {
+            http_response_code(400);
+            die("El valor de la escala cualitativa debe estar entre 0 y 1.");
+        }
+
+        return $escala;
+    }
+
+    private function calcularResultado(array $indicador, float $valor): array
+    {
+        if ($indicador['tipo'] === 'cualitativo') {
+            if (!is_finite($valor) || $valor < 0 || $valor > 1) {
+                http_response_code(400);
+                die("El valor de la escala cualitativa debe estar entre 0 y 1.");
+            }
+            $estandar = 1.0;
+        } else {
+            $estandar = (float) ($indicador['valor_estandar'] ?? 0);
+            if ($estandar <= 0) {
+                http_response_code(400);
+                die("Valor estándar inválido.");
+            }
+        }
+
+        return [
+            'porcentaje' => min(100, round(($valor / $estandar) * 100, 2)),
+            'diferencia' => $valor - $estandar
+        ];
+    }
+
+    private function crearEvaluacionPendiente($data)
+    {
+        $periodoId = filter_var($data['periodo_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $indicadorId = filter_var($data['indicador_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        if (!$periodoId || !$indicadorId) {
+            http_response_code(400);
+            die("Debe seleccionar un período y un indicador válidos.");
+        }
+
+        $periodoModel = new PeriodoModel();
+        $indicadorModel = new IndicadorModel();
+        if (!$periodoModel->getById($periodoId) || !$indicadorModel->getById($indicadorId)) {
+            http_response_code(400);
+            die("El período o el indicador seleccionado no existe.");
+        }
+
+        $evaluacionModel = new EvaluacionIndicadorModel();
+        return $evaluacionModel->create([
+            'periodo_id' => $periodoId,
+            'indicador_id' => $indicadorId,
+            'valor_ingresado' => null,
+            'valor_calculado' => null,
+            'porcentaje_obtenido' => null,
+            'diferencia' => null,
+            'estado' => 'pendiente',
+            'observaciones' => htmlspecialchars($data['observaciones'] ?? ''),
+            'evaluado_por' => $this->user['id']
+        ]);
     }
 
     private function procesarEvaluacion($data)
@@ -320,15 +425,18 @@ class EvaluacionController extends Controller
         $periodo_id = (int) $data['periodo_id'];
         $observaciones = htmlspecialchars($data['observaciones'] ?? '');
 
-        if ($indicador['valor_estandar'] <= 0) {
+        if ($indicador['tipo'] === 'cuantitativo' && $indicador['valor_estandar'] <= 0) {
             die("Valor estándar inválido.");
+        }
+
+        if ($indicador['tipo'] === 'cuantitativo' && trim((string) ($indicador['formula'] ?? '')) === '') {
+            die("El indicador cuantitativo no tiene una fórmula configurada.");
         }
 
         // ================================
         // CUANTITATIVO
         // ================================
         if ($indicador['tipo'] === 'cuantitativo') {
-            // En creación, las variables son opcionales y se completan en edición.
             if (!empty($data['variables']) && is_array($data['variables'])) {
                 $variables = $data['variables'];
 
@@ -358,8 +466,19 @@ class EvaluacionController extends Controller
                 // Guardar JSON para auditoría
                 $valor_ingresado = json_encode($variables);
             } else {
-                $valor_calculado = 0.0;
-                $valor_ingresado = null;
+                $formula = trim((string) ($indicador['formula'] ?? ''));
+                if ($formula === '' || preg_match('/\b[A-Z]+\b/', $formula)) {
+                    die("Debe ingresar las variables del indicador.");
+                }
+
+                try {
+                    $valor_calculado = eval("return $formula;");
+                } catch (Throwable $e) {
+                    die("Error en la fórmula.");
+                }
+
+                $valor_calculado = round($valor_calculado, $indicador['decimales']);
+                $valor_ingresado = json_encode([]);
             }
         }
 
@@ -367,16 +486,24 @@ class EvaluacionController extends Controller
         // CUALITATIVO
         // ================================
         else {
-            $valor_calculado = 0.0;
-            $valor_ingresado = null;
+            $escala = $this->obtenerEscalaCualitativa(
+                $data['escala_cualitativa_id'] ?? 0,
+                $periodo_id
+            );
+            $valor_calculado = (float) $escala['valor'];
+            $valor_ingresado = json_encode([
+                'tipo' => 'cualitativo',
+                'escala_id' => (int) $escala['id'],
+                'nombre' => $escala['nombre']
+            ]);
         }
 
         // ================================
         // CÁLCULOS FINALES
         // ================================
 
-        $porcentaje = ($valor_calculado / $indicador['valor_estandar']) * 100;
-        $porcentaje = min(100, round($porcentaje, 2));
+        $resultado = $this->calcularResultado($indicador, $valor_calculado);
+        $porcentaje = $resultado['porcentaje'];
 
         if ($porcentaje >= 100) {
             $estado = 'aprobado';
@@ -386,7 +513,7 @@ class EvaluacionController extends Controller
             $estado = 'rechazado';
         }
 
-        $diferencia = $valor_calculado - $indicador['valor_estandar'];
+        $diferencia = $resultado['diferencia'];
 
         // ================================
         // GUARDAR
@@ -421,6 +548,23 @@ class EvaluacionController extends Controller
         return $evaluacion_id;
     }
 
+    private function recalcularAvances($indicador_id, $periodo_id)
+    {
+        $indicadorModel = new IndicadorModel();
+        $indicador = $indicadorModel->getById($indicador_id);
+        if (!$indicador) {
+            return;
+        }
+
+        $subcriterioModel = new SubcriterioModel();
+        $subcriterioModel->calcularAvance((int) $indicador['subcriterio_id'], $periodo_id);
+        $subcriterio = $subcriterioModel->getById($indicador['subcriterio_id']);
+        if ($subcriterio) {
+            $criterioModel = new CriterioModel();
+            $criterioModel->calcularAvance((int) $subcriterio['criterio_id'], $periodo_id);
+        }
+    }
+
     private function recalcularEvaluacion($id, $data)
     {
         $evaluacionModel = new EvaluacionIndicadorModel();
@@ -429,27 +573,39 @@ class EvaluacionController extends Controller
 
         $indicador = $indicadorModel->getById($data['indicador_id']);
 
+        if (!$indicador) {
+            die("Indicador no válido.");
+        }
+
         $periodo_id = (int) $data['periodo_id'];
 
         // ==== CUANTITATIVO ====
         if ($indicador['tipo'] === 'cuantitativo') {
+            if (trim((string) ($indicador['formula'] ?? '')) === '') {
+                die("El indicador cuantitativo no tiene una fórmula configurada.");
+            }
 
             if (empty($data['variables']) || !is_array($data['variables'])) {
-                die("Debe ingresar las variables.");
-            }
-
-            $variables = $data['variables'];
-
-            foreach ($variables as $key => $valor) {
-                if (!is_numeric($valor)) {
-                    die("Valor inválido en variable $key.");
+                $formula = trim((string) ($indicador['formula'] ?? ''));
+                if ($formula === '' || preg_match('/\b[A-Z]+\b/', $formula)) {
+                    die("Debe ingresar las variables del indicador.");
                 }
-            }
 
-            $formula = $indicador['formula'];
+                $variables = [];
+            } else {
+                $variables = $data['variables'];
 
-            foreach ($variables as $variable => $valor) {
-                $formula = preg_replace('/\\b' . preg_quote($variable, '/') . '\\b/', (string) $valor, $formula);
+                foreach ($variables as $key => $valor) {
+                    if (!is_numeric($valor)) {
+                        die("Valor inválido en variable $key.");
+                    }
+                }
+
+                $formula = $indicador['formula'];
+
+                foreach ($variables as $variable => $valor) {
+                    $formula = preg_replace('/\\b' . preg_quote($variable, '/') . '\\b/', (string) $valor, $formula);
+                }
             }
 
             try {
@@ -464,11 +620,20 @@ class EvaluacionController extends Controller
 
         // ==== CUALITATIVO ====
         else {
-            $valor_calculado = 0.0;
-            $valor_ingresado = null;
+            $escala = $this->obtenerEscalaCualitativa(
+                $data['escala_cualitativa_id'] ?? 0,
+                $periodo_id
+            );
+            $valor_calculado = (float) $escala['valor'];
+            $valor_ingresado = json_encode([
+                'tipo' => 'cualitativo',
+                'escala_id' => (int) $escala['id'],
+                'nombre' => $escala['nombre']
+            ]);
         }
 
-        $porcentaje = min(100, round(($valor_calculado / $indicador['valor_estandar']) * 100, 2));
+        $resultado = $this->calcularResultado($indicador, $valor_calculado);
+        $porcentaje = $resultado['porcentaje'];
 
         if ($porcentaje >= 100) {
             $estado = 'aprobado';
@@ -478,7 +643,7 @@ class EvaluacionController extends Controller
             $estado = 'rechazado';
         }
 
-        $diferencia = $valor_calculado - $indicador['valor_estandar'];
+        $diferencia = $resultado['diferencia'];
 
         $evaluacionModel->update($id, [
             'valor_ingresado' => $valor_ingresado,
@@ -489,12 +654,7 @@ class EvaluacionController extends Controller
             'observaciones' => htmlspecialchars($data['observaciones'] ?? '')
         ]);
 
-        // Calcular avances
-        $subcriterioModel = new SubcriterioModel();
-        $criterioModel = new CriterioModel();
-        $subcriterioModel->calcularAvance($indicador['subcriterio_id'], $periodo_id);
-        $subcriterio = $subcriterioModel->getById($indicador['subcriterio_id']);
-        $criterioModel->calcularAvance($subcriterio['criterio_id'], $periodo_id);
+        $this->recalcularAvances((int) $indicador['id'], $periodo_id);
 
         if ($estado === 'rechazado') {
             $planModel->create([

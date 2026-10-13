@@ -57,7 +57,7 @@ class UserModel extends Model
 
     public function registrarUltimoAcceso(int $userId): void
     {
-        $stmt = $this->db->prepare("CALL sp_registrar_ultimo_acceso(:user_id)");
+        $stmt = $this->db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = :user_id");
         $stmt->execute(['user_id' => $userId]);
         $stmt->closeCursor();
     }

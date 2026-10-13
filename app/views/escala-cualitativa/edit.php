@@ -33,8 +33,10 @@
                     name="valor"
                     value="<?= htmlspecialchars($data['valor'] ?? '') ?>"
                     step="0.01"
+                    min="0"
+                    max="1"
                     required>
-                <small class="text-muted">Valor decimal o entero para el cálculo.</small>
+                <small class="text-muted">Valor entre 0 y 1; el porcentaje es el valor × 100.</small>
             </div>
 
             <div class="flex-1 form-group">

@@ -6,6 +6,14 @@ require_once BASE_PATH . '/app/models/PeriodoModel.php';
 
 class EscalaCualitativaController extends Controller
 {
+    private function validarValor($valor): void
+    {
+        if (!is_numeric($valor) || (float) $valor < 0 || (float) $valor > 1) {
+            http_response_code(400);
+            die("El valor de la escala cualitativa debe estar entre 0 y 1.");
+        }
+    }
+
     public function index()
     {
         $this->authorize('escala-cualitativa', 'leer');
@@ -22,6 +30,7 @@ class EscalaCualitativaController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+            $this->validarValor($_POST['valor'] ?? null);
             $model = new EscalaCualitativaModel();
 
             if ($id) {
@@ -70,6 +79,7 @@ class EscalaCualitativaController extends Controller
         $data = $model->getById($id);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validarValor($_POST['valor'] ?? null);
             $model->update($id, [
                 'nombre' => $_POST['nombre'],
                 'valor' => $_POST['valor'],

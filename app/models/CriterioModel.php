@@ -62,24 +62,25 @@ class CriterioModel extends Model
         $subcriterios = $subcriterioModel->getByCriterio($criterio_id);
 
         if (empty($subcriterios)) {
-            return; // No hay subcriterios
+            $this->update($criterio_id, ['avance' => 0]);
+            return;
         }
 
-        $total_avance = 0;
-        $count = 0;
+        $total_ponderado = 0;
+        $peso_total = 0;
 
         foreach ($subcriterios as $subcriterio) {
-            if (isset($subcriterio['avance']) && $subcriterio['avance'] !== null) {
-                $total_avance += $subcriterio['avance'];
-                $count++;
+            $peso = (float) ($subcriterio['peso'] ?? 0);
+            $peso_total += $peso;
+
+            if ($peso > 0) {
+                $total_ponderado += (float) ($subcriterio['avance'] ?? 0) * $peso;
             }
         }
 
-        if ($count > 0) {
-            $avance = round($total_avance / $count, 2);
-        } else {
-            $avance = 0;
-        }
+        $avance = $peso_total > 0
+            ? round($total_ponderado / $peso_total, 2)
+            : 0;
 
         // Actualizar el avance del criterio
         $this->update($criterio_id, ['avance' => $avance]);

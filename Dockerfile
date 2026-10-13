@@ -50,7 +50,9 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Permisos
-RUN chown -R www-data:www-data /var/www/html
+RUN mkdir -p /var/www/html/public/uploads \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod 775 /var/www/html/public/uploads
 
 EXPOSE 80
 
