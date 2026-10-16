@@ -59,26 +59,84 @@ class DashboardModel
             || (int) $driverCode === 1054;
     }
 
-    private function getDashboardPeriodoActual()
-    {
-        $periodoActivo = $this->fetchOne($this->pdoSig, "
-            SELECT nombre
-            FROM periodos
-            WHERE estado = 'activo'
-            ORDER BY id DESC
-            LIMIT 1
-        ");
+    private const MESES = [
+        'ENERO' => 1, 'ENE' => 1, 'FEBRERO' => 2, 'FEB' => 2, 'MARZO' => 3, 'MAR' => 3,
+        'ABRIL' => 4, 'ABR' => 4, 'MAYO' => 5, 'MAY' => 5, 'JUNIO' => 6, 'JUN' => 6,
+        'JULIO' => 7, 'JUL' => 7, 'AGOSTO' => 8, 'AGO' => 8, 'SEPTIEMBRE' => 9, 'SETIEMBRE' => 9,
+        'SEP' => 9, 'SEPT' => 9, 'OCTUBRE' => 10, 'OCT' => 10, 'NOVIEMBRE' => 11, 'NOV' => 11,
+        'DICIEMBRE' => 12, 'DIC' => 12,
+    ];
 
-        if (!empty($periodoActivo['nombre'])) {
-            return $periodoActivo['nombre'];
+    private const MESES_ABREVIADOS = [
+        1 => 'ENE', 2 => 'FEB', 3 => 'MAR', 4 => 'ABR', 5 => 'MAY', 6 => 'JUN',
+        7 => 'JUL', 8 => 'AGO', 9 => 'SEP', 10 => 'OCT', 11 => 'NOV', 12 => 'DIC',
+    ];
+
+    /** Meses y años mencionados en el nombre del período, en orden ("PAO MAYO - OCTUBRE 2026" => [5, 10], [2026]). */
+    private function partesPeriodo($periodo)
+    {
+        $texto = strtoupper(strtr((string) $periodo, ['Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U']));
+        preg_match_all('/[A-Z]+/', $texto, $palabras);
+        preg_match_all('/\b(20\d{2})\b/', $texto, $anios);
+
+        $meses = [];
+        foreach ($palabras[0] as $palabra) {
+            if (isset(self::MESES[$palabra])) {
+                $meses[] = self::MESES[$palabra];
+            }
         }
 
-        $periodoUsers = $this->fetchOne($this->pdoCon, "
-            SELECT MAX(periodo) periodo
+        return [$meses, array_map('intval', $anios[1])];
+    }
+
+    /**
+     * Período actual = el período de Q10 (users.periodo) que termina más tarde según su nombre
+     * (último año y último mes). MAX(periodo) no sirve porque compara texto alfabéticamente.
+     */
+    private function getDashboardPeriodoActual()
+    {
+        $periodos = $this->fetchAll($this->pdoCon, "
+            SELECT periodo, COUNT(*) total
             FROM users
+            WHERE periodo IS NOT NULL AND TRIM(periodo) <> ''
+            GROUP BY periodo
         ");
 
-        return $periodoUsers['periodo'] ?? null;
+        $actual = null;
+        $mejorClave = null;
+        foreach ($periodos as $fila) {
+            [$meses, $anios] = $this->partesPeriodo($fila['periodo']);
+            if (!$anios) {
+                continue;
+            }
+            $clave = [max($anios), $meses ? end($meses) : 0, (int) $fila['total']];
+            if ($mejorClave === null || $clave > $mejorClave) {
+                $mejorClave = $clave;
+                $actual = $fila['periodo'];
+            }
+        }
+
+        return $actual;
+    }
+
+    /**
+     * Código con el que Q10 registra la beca del período en estado_beca:
+     * "PAO MAYO - OCTUBRE 2026" => "MAY-OCT26", "PAO NOVIEMBRE 2025 - ABRIL 2026" => "NOV25-ABR26".
+     */
+    private function codigoBecaPeriodo($periodo)
+    {
+        [$meses, $anios] = $this->partesPeriodo($periodo);
+        if (count($meses) < 2 || !$anios) {
+            return null;
+        }
+
+        $inicio = self::MESES_ABREVIADOS[$meses[0]];
+        $fin = self::MESES_ABREVIADOS[end($meses)];
+        $anioFin = substr((string) max($anios), -2);
+
+        return count(array_unique($anios)) > 1
+            ? $inicio . substr((string) min($anios), -2) . '-' . $fin . $anioFin
+            : $inicio . '-' . $fin . $anioFin;
     }
 
     /**
@@ -355,13 +413,17 @@ class DashboardModel
         BECAS
         ========================= */
 
+        $codigoBeca = $this->codigoBecaPeriodo($periodoActual);
+        $filtroBeca = $codigoBeca !== null
+            ? "REPLACE(UPPER(COALESCE(estado_beca, '')), ' ', '') LIKE " . $this->pdoCon->quote('%' . $codigoBeca . '%')
+            : "tiene_beca = 'Si'";
+
         $data['totalBecados'] = $this->fetchOne($this->pdoCon, "
             SELECT COUNT(*) AS total
-            FROM superar1_conectados.users
-            WHERE estado_beca LIKE CONCAT('%', RIGHT(
-                {$periodoActualSql}, 2
-            ), '%')
-            AND periodo = {$periodoActualSql} AND estado ='Activo';
+            FROM users
+            WHERE {$filtroBeca}
+            AND periodo = {$periodoActualSql}
+            AND estado = 'Activo'
         ")['total'];
 
         /* =========================
