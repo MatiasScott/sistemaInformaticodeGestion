@@ -9,6 +9,9 @@ class IndicadorModel extends Model
 
     public function create($data)
     {
+        if (($data['responsable_evaluacion_cargo'] ?? '') === '') {
+            $data['responsable_evaluacion_cargo'] = null;
+        }
         return $this->insert($data);
     }
 

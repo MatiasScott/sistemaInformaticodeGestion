@@ -47,7 +47,9 @@ class IndicadorController extends Controller
 
             // Validar peso total
             $peso_total = $this->model->getPesoTotalBySubcriterio($_POST['subcriterio_id']);
-            if ($peso_total + $_POST['peso'] > 100) {
+            if (!filter_var($_POST['responsable_ejecucion_cargo'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+                $error = "Debe seleccionar un responsable de ejecución.";
+            } elseif ($peso_total + $_POST['peso'] > 100) {
                 $error = "El peso total de indicadores en este subcriterio no puede exceder 100%. Peso actual: {$peso_total}%, intentando agregar: {$_POST['peso']}%";
             } else {
                 $data = $_POST;
@@ -84,7 +86,9 @@ class IndicadorController extends Controller
         if ($_POST) {
             // Validar peso total
             $peso_total = $this->model->getPesoTotalBySubcriterio($_POST['subcriterio_id'], $id);
-            if ($peso_total + $_POST['peso'] > 100) {
+            if (!filter_var($_POST['responsable_ejecucion_cargo'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+                $error = "Debe seleccionar un responsable de ejecución.";
+            } elseif ($peso_total + $_POST['peso'] > 100) {
                 $error = "El peso total de indicadores en este subcriterio no puede exceder 100%. Peso actual de otros indicadores: {$peso_total}%, intentando asignar: {$_POST['peso']}%";
             } else {
                 $this->model->update($id, $_POST);

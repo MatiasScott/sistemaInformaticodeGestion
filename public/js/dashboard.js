@@ -403,10 +403,37 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (byCriterio.length > 0) {
 
+        const formatoDosDecimales = v => (v != null && !isNaN(Number(v))) ? Number(v).toFixed(2) + '%' : '';
+
+        // Aporte de cada criterio al total: avance × peso / 100.
         createBarChart(
             'criterioChart',
             byCriterio.map(i => i.criterio),
-            byCriterio.map(i => parseFloat(i.avance))
+            byCriterio.map(i => parseFloat(i.aporte)),
+            {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => Number(value).toFixed(2) + '%' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { formatter: formatoDosDecimales },
+                    tooltip: {
+                        callbacks: {
+                            label: context => {
+                                const item = byCriterio[context.dataIndex];
+                                return [
+                                    'Aporte al total: ' + formatoDosDecimales(item.aporte),
+                                    'Peso: ' + formatoDosDecimales(item.peso),
+                                    'Avance: ' + formatoDosDecimales(item.avance)
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
         );
 
     }
@@ -432,7 +459,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         datalabels: {
                             anchor: 'end',
                             align: 'top',
-                            formatter: v => (v != null && !isNaN(v)) ? v.toFixed(1) + '%' : ''
+                            formatter: v => (v != null && !isNaN(v)) ? v.toFixed(2) + '%' : ''
                         }
                     },
 

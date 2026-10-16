@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Variables inyectadas vía extract($data) desde DashboardController
  *
@@ -347,11 +348,18 @@
     <h3>Resultados de Autoevaluación Institucional (<?= $startYear ?> - <?= $endYear ?>)</h3>
 
     <div class="card">
+        <p class="text-muted">
+            Resultado anual ponderado de los períodos PAO y PAE que finalizan en ese año.
+            Las evaluaciones sin nota no se incluyen.
+        </p>
         <canvas id="institutionalChart"></canvas>
     </div>
 
     <div class="card mt-3">
         <h4>Resultados por Criterio</h4>
+        <!-- 
+        <p class="text-muted small">Aporte de cada criterio al resultado total: avance × peso / 100. Ejemplo: peso 10 % y avance 70 % = 7.00 %.</p>
+        -->
         <canvas id="criterioChart"></canvas>
     </div>
 </div>

@@ -44,7 +44,11 @@ class DashboardController extends Controller
         $startYear = 2024;
         $endYear = 2028;
 
-        $data['institutional'] = $evalModel->getInstitutionalResults($startYear, $endYear);
+        $data['institutional'] = $this->agregarResultadosHistoricos(
+            $evalModel->getInstitutionalResults($startYear, $endYear),
+            $startYear,
+            $endYear
+        );
         $data['byIndicator'] = $evalModel->getResultsByIndicator();
         $data['byCriterio'] = $criterioModel->getCriterio();
 
@@ -58,5 +62,30 @@ class DashboardController extends Controller
         ======================== */
 
         $this->view('dashboard/index', $data);
+    }
+
+    /**
+     * Resultados anuales oficiales que no tienen evaluaciones registradas en el sistema.
+     * Solo se usan en el gráfico anual institucional.
+     */
+    private function agregarResultadosHistoricos(array $resultados, int $startYear, int $endYear): array
+    {
+        $historicos = [
+            2024 => 86.31,
+        ];
+
+        $porAnio = [];
+        foreach ($resultados as $resultado) {
+            $porAnio[(int) $resultado['year']] = $resultado;
+        }
+
+        foreach ($historicos as $anio => $valor) {
+            if ($anio >= $startYear && $anio <= $endYear && !isset($porAnio[$anio])) {
+                $porAnio[$anio] = ['year' => $anio, 'resultado' => $valor];
+            }
+        }
+
+        ksort($porAnio);
+        return array_values($porAnio);
     }
 }

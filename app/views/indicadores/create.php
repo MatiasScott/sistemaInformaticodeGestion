@@ -95,8 +95,8 @@
 
         <div class="d-flex mb-4">
             <div class="flex-1 form-group">
-                <label for="responsable_ejecucion_cargo">Responsable Ejecución:</label>
-                <select id="responsable_ejecucion_cargo" name="responsable_ejecucion_cargo">
+                <label for="responsable_ejecucion_cargo">Responsable Ejecución (obligatorio):</label>
+                <select id="responsable_ejecucion_cargo" name="responsable_ejecucion_cargo" required>
                     <option value="">Seleccionar</option>
                     <?php $cargos = $cargos ?? []; ?>
                     <?php foreach ($cargos as $c): ?>
@@ -108,7 +108,7 @@
             </div>
 
             <div class="flex-1 form-group">
-                <label for="responsable_evaluacion_cargo">Responsable Evaluación:</label>
+                <label for="responsable_evaluacion_cargo">Responsable Evaluación (opcional):</label>
                 <select id="responsable_evaluacion_cargo" name="responsable_evaluacion_cargo">
                     <option value="">Seleccionar</option>
                     <?php foreach ($cargos as $c): ?>

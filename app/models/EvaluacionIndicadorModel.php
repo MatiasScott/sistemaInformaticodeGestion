@@ -52,24 +52,27 @@ class EvaluacionIndicadorModel extends Model
     }
 
     /**
-     * Retorna resultados institucionales agrupados por año (weighted average)
+     * Promedio ponderado anual de PAO y PAE según el año de finalización.
      */
     public function getInstitutionalResults($startYear = 2024, $endYear = 2028)
     {
         $sql = "SELECT 
-            YEAR(p.fecha_inicio) as year,
+            YEAR(p.fecha_fin) as year,
             SUM(i.peso) AS total_peso,
             SUM(e.porcentaje_obtenido * i.peso) AS total_porcentaje_peso,
             CASE WHEN SUM(i.peso) > 0 THEN (SUM(e.porcentaje_obtenido * i.peso) / SUM(i.peso)) ELSE 0 END AS resultado
         FROM evaluaciones_indicador e
         JOIN indicadores i ON e.indicador_id = i.id
         JOIN periodos p ON e.periodo_id = p.id
-        WHERE YEAR(p.fecha_inicio) BETWEEN :start AND :end
-        GROUP BY YEAR(p.fecha_inicio)
-        ORDER BY YEAR(p.fecha_inicio) ASC";
+        WHERE YEAR(p.fecha_fin) BETWEEN :start AND :end
+            AND e.porcentaje_obtenido IS NOT NULL
+        GROUP BY YEAR(p.fecha_fin)
+        ORDER BY YEAR(p.fecha_fin) ASC";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['start' => $startYear, 'end' => $endYear]);
+        $stmt->bindValue(':start', (int) $startYear, PDO::PARAM_INT);
+        $stmt->bindValue(':end', (int) $endYear, PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 

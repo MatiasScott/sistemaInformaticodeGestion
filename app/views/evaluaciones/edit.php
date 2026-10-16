@@ -27,6 +27,11 @@ $valores_previos = [];
 if (!empty($evaluacion['valor_ingresado'])) {
     $valores_previos = json_decode($evaluacion['valor_ingresado'], true);
 }
+
+// Las evaluaciones importadas guardan solo el resultado (no un objeto con variables).
+if (!is_array($valores_previos)) {
+    $valores_previos = [];
+}
 ?>
 
 <div class="card">
@@ -84,7 +89,12 @@ if (!empty($evaluacion['valor_ingresado'])) {
 
             <?php foreach ($variables as $v): ?>
                 <div class="form-group mb-3">
-                    <label><?= $v['nombre_variable'] ?></label>
+                    <label>
+                        <?= htmlspecialchars($v['nombre_variable']) ?>
+                        <?php if (!empty($v['descripcion'])): ?>
+                            <small class="text-muted">— <?= htmlspecialchars($v['descripcion']) ?></small>
+                        <?php endif; ?>
+                    </label>
                     <input type="number"
                         step="0.01"
                         name="variables[<?= $v['nombre_variable'] ?>]"

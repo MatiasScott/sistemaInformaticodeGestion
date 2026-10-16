@@ -29,7 +29,11 @@ class CriterioModel extends Model
 
     public function getCriterio()
     {
-        $sql = "SELECT c.nombre as criterio, c.avance as avance, p.nombre AS periodo_nombre
+        $sql = "SELECT c.nombre as criterio,
+                       ROUND(COALESCE(c.avance, 0), 2) as avance,
+                       ROUND(c.peso, 2) as peso,
+                       ROUND(COALESCE(c.avance, 0) * c.peso / 100, 2) as aporte,
+                       p.nombre AS periodo_nombre
                 FROM criterios c
                 LEFT JOIN periodos p ON c.periodo_id = p.id
                 WHERE p.id = (
