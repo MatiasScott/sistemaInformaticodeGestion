@@ -19,13 +19,10 @@ services:
     volumes:
       - ./timezone.ini:/usr/local/etc/php/conf.d/99-timezone.ini:ro
       - ./uploads.ini:/usr/local/etc/php/conf.d/98-uploads.ini:ro
-      - sig_uploads:/var/www/html/public/uploads
+      - ./public/uploads:/var/www/html/public/uploads
 
     networks:
       - moodle_net
-
-volumes:
-  sig_uploads:
 
 networks:
   moodle_net:
