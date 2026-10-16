@@ -145,9 +145,9 @@
 
                     <option value="todas">Todas</option>
 
-                    <?php foreach ($areas as $area): ?>
-                        <option value="<?= $area['nombre_area'] ?>">
-                            <?= $area['nombre_area'] ?>
+                    <?php foreach (($areas ?? []) as $area): ?>
+                        <option value="<?= htmlspecialchars($area['nombre_area']) ?>">
+                            <?= htmlspecialchars($area['nombre_area']) ?>
                         </option>
                     <?php endforeach; ?>
 
@@ -366,29 +366,29 @@
 
 <script>
     window.dashboardData = {
-        modalidades: <?= json_encode($modalidades ?? []) ?>,
-        institutional: <?= json_encode($institutional ?? []) ?>,
-        byIndicator: <?= json_encode($byIndicator ?? []) ?>,
-        byCriterio: <?= json_encode($byCriterio ?? []) ?>,
-        proyectosTipo: <?= json_encode($proyectosTipo ?? []) ?>,
-        estudiantesPrograma: <?= json_encode($estudiantesPrograma ?? []) ?>,
-        promedioAvance: <?= json_encode($promedioAvanceProyectos ?? 0) ?>,
-        avanceProyectos: <?= json_encode($AvanceProyectos ?? []) ?>,
-        avanceProyectosVinculacion: <?= json_encode($AvanceProyectosVinculacion ?? []) ?>,
-        avanceProyectosInvestigacion: <?= json_encode($AvanceProyectosInvestigacion ?? []) ?>,
-        pediData: <?= json_encode($avancePedi ?? []) ?>,
-        poaData: <?= json_encode($avancePoa ?? []) ?>,
-        actividadesData: <?= json_encode($actividadesPoa ?? []) ?>,
-        estadoConvenio: <?= json_encode($kpiEstadoConvenio ?? []) ?>,
-        tipoConvenio: <?= json_encode($kpiTipoConvenio ?? []) ?>,
-        tipoInstitucion: <?= json_encode($kpiTipoInstitucion ?? []) ?>,
-        ejecucionConvenio: <?= json_encode($kpiEnEjecucion ?? []) ?>,
-        carrerasConvenio: <?= json_encode($graficoCarreras ?? []) ?>,
-        ciudadConvenio: <?= json_encode($graficoCiudad ?? []) ?>,
-        graduadosCarreras: <?= json_encode($graduadosCarreras ?? []) ?>
+        modalidades: <?= json_encode($modalidades ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        institutional: <?= json_encode($institutional ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        byIndicator: <?= json_encode($byIndicator ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        byCriterio: <?= json_encode($byCriterio ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        proyectosTipo: <?= json_encode($proyectosTipo ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        estudiantesPrograma: <?= json_encode($estudiantesPrograma ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        promedioAvance: <?= json_encode($promedioAvanceProyectos ?? 0, JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        avanceProyectos: <?= json_encode($AvanceProyectos ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        avanceProyectosVinculacion: <?= json_encode($AvanceProyectosVinculacion ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        avanceProyectosInvestigacion: <?= json_encode($AvanceProyectosInvestigacion ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        pediData: <?= json_encode($avancePedi ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        poaData: <?= json_encode($avancePoa ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        actividadesData: <?= json_encode($actividadesPoa ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        estadoConvenio: <?= json_encode($kpiEstadoConvenio ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        tipoConvenio: <?= json_encode($kpiTipoConvenio ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        tipoInstitucion: <?= json_encode($kpiTipoInstitucion ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        ejecucionConvenio: <?= json_encode($kpiEnEjecucion ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        carrerasConvenio: <?= json_encode($graficoCarreras ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        ciudadConvenio: <?= json_encode($graficoCiudad ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>,
+        graduadosCarreras: <?= json_encode($graduadosCarreras ?? [], JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>
     };
 </script>
 
-<script src="<?= URL_PATH ?>js/dashboard.js"></script>
+<script src="<?= URL_PATH ?>js/dashboard.js?v=<?= @filemtime(BASE_PATH . '/public/js/dashboard.js') ?: '1' ?>"></script>
 
 <?php require BASE_PATH . '/app/views/layout/footer.php'; ?>

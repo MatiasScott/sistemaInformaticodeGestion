@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function createHorizontalBarChart(id, labels, data) {
+    function createHorizontalBarChart(id, labels, data, tooltipTitles = null, maxX = null) {
 
         const ctx = getCtx(id);
         if (!ctx) return;
@@ -84,8 +84,15 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             options: {
                 indexAxis: 'y',
+                layout: { padding: { right: 40 } },
+                scales: maxX ? { x: { min: 0, max: maxX } } : {},
                 plugins: {
                     legend: { display: false },
+                    tooltip: tooltipTitles ? {
+                        callbacks: {
+                            title: items => items.length ? (tooltipTitles[items[0].dataIndex] || items[0].label) : ''
+                        }
+                    } : {},
                     datalabels: {
                         align: 'right',
                         anchor: 'end',
@@ -142,23 +149,22 @@ document.addEventListener("DOMContentLoaded", function () {
     AVANCE PROYECTOS
     ============================== */
 
-    createHorizontalBarChart(
-        'avanceProyectos',
-        avanceProyectos.map(p => p.nombre_proyecto.substring(0, 40) + '...'),
-        avanceProyectos.map(p => parseFloat(p.porcentaje_avance) || 0)
-    );
+    const nombreCorto = (nombre, max = 40) => {
+        const texto = String(nombre ?? 'Sin nombre');
+        return texto.length > max ? texto.substring(0, max) + '...' : texto;
+    };
 
-    createHorizontalBarChart(
-        'avanceProyectosVinculacion',
-        avanceProyectosVinculacion.map(p => p.nombre_proyecto.substring(0, 40) + '...'),
-        avanceProyectosVinculacion.map(p => parseFloat(p.porcentaje_avance) || 0)
-    );
-
-    createHorizontalBarChart(
-        'avanceProyectosInvestigacion',
-        avanceProyectosInvestigacion.map(p => p.nombre_proyecto.substring(0, 40) + '...'),
-        avanceProyectosInvestigacion.map(p => parseFloat(p.porcentaje_avance) || 0)
-    );
+    [
+        ['avanceProyectos', avanceProyectos],
+        ['avanceProyectosVinculacion', avanceProyectosVinculacion],
+        ['avanceProyectosInvestigacion', avanceProyectosInvestigacion]
+    ].forEach(([id, proyectos]) => createHorizontalBarChart(
+        id,
+        proyectos.map(p => nombreCorto(p.nombre_proyecto)),
+        proyectos.map(p => parseFloat(p.porcentaje_avance) || 0),
+        proyectos.map(p => p.nombre_proyecto || 'Sin nombre'),
+        100
+    ));
 
     /* ==============================
     PROYECTOS
@@ -200,7 +206,9 @@ document.addEventListener("DOMContentLoaded", function () {
     createHorizontalBarChart(
         'chartPedi',
         pediData.map(p => p.objetivo_estrategia),
-        pediData.map(p => parseFloat(p.avance) || 0)
+        pediData.map(p => parseFloat(p.avance) || 0),
+        pediData.map(p => p.objetivo_nombre || ''),
+        100
     );
 
     /* ==============================
@@ -213,17 +221,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const poaPorcentajes = poaData.map(p => {
 
+            const asignado = parseFloat(p.asignado) || 0;
             const ejecutado = parseFloat(p.ejecutado) || 0;
-            const progreso = parseFloat(p.progreso) || 0;
-            const no_ejecutado = parseFloat(p.no_ejecutado) || 0;
-
-            const total = ejecutado + progreso + no_ejecutado;
 
             return {
                 area: p.nombre_area,
-                ejecutado: total ? (ejecutado / total * 100) : 0,
-                progreso: total ? (progreso / total * 100) : 0,
-                no_ejecutado: total ? (no_ejecutado / total * 100) : 0
+                asignado: asignado,
+                ejecutado: asignado ? (ejecutado / asignado * 100) : 0,
+                por_ejecutar: asignado ? ((asignado - ejecutado) / asignado * 100) : 0
             };
 
         });
@@ -245,14 +250,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     },
 
                     {
-                        label: 'En progreso (%)',
-                        data: poaPorcentajes.map(p => p.progreso),
-                        backgroundColor: '#f59e0b'
-                    },
-
-                    {
-                        label: 'No ejecutado (%)',
-                        data: poaPorcentajes.map(p => p.no_ejecutado),
+                        label: 'Por ejecutar (%)',
+                        data: poaPorcentajes.map(p => p.por_ejecutar),
                         backgroundColor: '#ef4444'
                     }
 
@@ -262,8 +261,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
             options: {
                 indexAxis: 'y',
+                layout: { padding: { right: 40 } },
+                scales: { x: { min: 0, max: 100 } },
 
                 plugins: {
+
+                    tooltip: {
+                        callbacks: {
+                            label: c => `${c.dataset.label}: ${c.parsed.x.toFixed(2)}%`,
+                            footer: items => items.length
+                                ? 'Presupuesto asignado: $' + poaPorcentajes[items[0].dataIndex].asignado.toLocaleString('es-EC', { minimumFractionDigits: 2 })
+                                : ''
+                        }
+                    },
 
                     datalabels: {
 
@@ -310,6 +320,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             options: {
                 indexAxis: 'y',
+                layout: { padding: { right: 40 } },
+                scales: { x: { min: 0, max: 100 } },
                 plugins: {
                     datalabels: {
                         align: 'right',
@@ -401,29 +413,48 @@ document.addEventListener("DOMContentLoaded", function () {
 
     }
 
-    if (byCriterio.length > 0) {
+    const ctxCriterio = getCtx('criterioChart');
+
+    if (ctxCriterio && byCriterio.length > 0) {
 
         const formatoDosDecimales = v => (v != null && !isNaN(Number(v))) ? Number(v).toFixed(2) + '%' : '';
+        const coloresAnio = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6'];
 
-        // Aporte de cada criterio al total: avance × peso / 100.
-        createBarChart(
-            'criterioChart',
-            byCriterio.map(i => i.criterio),
-            byCriterio.map(i => parseFloat(i.aporte)),
-            {
+        const criterios = [...new Set(byCriterio.map(i => i.criterio))];
+        const anios = [...new Set(byCriterio.map(i => Number(i.anio)))].sort((a, b) => a - b);
+        const buscar = (criterio, anio) => byCriterio.find(i => i.criterio === criterio && Number(i.anio) === anio) || {};
+
+        // Una barra por año dentro de cada criterio: aporte al resultado anual (avance × peso / 100).
+        new Chart(ctxCriterio, {
+            type: 'bar',
+            data: {
+                labels: criterios,
+                datasets: anios.map((anio, idx) => ({
+                    label: String(anio),
+                    data: criterios.map(c => {
+                        const aporte = buscar(c, anio).aporte;
+                        return aporte != null ? Number(aporte) : null;
+                    }),
+                    backgroundColor: coloresAnio[idx % coloresAnio.length],
+                    borderRadius: 4
+                }))
+            },
+            options: {
                 scales: {
                     y: {
                         beginAtZero: true,
+                        grace: '10%',
                         ticks: { callback: value => Number(value).toFixed(2) + '%' }
                     }
                 },
                 plugins: {
-                    legend: { display: false },
+                    legend: { display: true, position: 'top' },
                     datalabels: { formatter: formatoDosDecimales },
                     tooltip: {
                         callbacks: {
+                            title: items => items.length ? `${items[0].label} (${items[0].dataset.label})` : '',
                             label: context => {
-                                const item = byCriterio[context.dataIndex];
+                                const item = buscar(context.label, Number(context.dataset.label));
                                 return [
                                     'Aporte al total: ' + formatoDosDecimales(item.aporte),
                                     'Peso: ' + formatoDosDecimales(item.peso),
@@ -434,7 +465,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 }
             }
-        );
+        });
 
     }
 

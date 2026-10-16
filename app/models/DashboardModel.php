@@ -81,6 +81,63 @@ class DashboardModel
         return $periodoUsers['periodo'] ?? null;
     }
 
+    /**
+     * Proyectos activos del período más reciente del tipo indicado. El período se toma del
+     * proyecto activo con la fecha de inicio más reciente (no por orden alfabético del nombre).
+     */
+    private function getAvanceProyectosUltimoPeriodo($tipo)
+    {
+        if (!in_array($tipo, ['INVESTIGACION', 'VINCULACION'], true)) {
+            return [];
+        }
+
+        return $this->fetchAll($this->pdoCon, "
+            SELECT nombre_proyecto, porcentaje_avance
+            FROM proyectos_administracion
+            WHERE estado = 'ACTIVO'
+            AND tipo_proyecto = '{$tipo}'
+            AND periodo_academico = (
+                SELECT periodo_academico
+                FROM proyectos_administracion
+                WHERE estado = 'ACTIVO' AND tipo_proyecto = '{$tipo}'
+                ORDER BY fecha_inicio DESC, id_proyecto DESC
+                LIMIT 1
+            )
+            ORDER BY porcentaje_avance DESC
+        ");
+    }
+
+    /**
+     * Años de planificación POA del período actual (p. ej. "PAO NOVIEMBRE 2025 - ABRIL 2026" => 2025, 2026).
+     * Si no hay POA en esos años, usa el último año planificado.
+     */
+    private function getAniosPoa($periodoActual)
+    {
+        preg_match_all('/\b(20\d{2})\b/', (string) $periodoActual, $matches);
+        $anios = array_values(array_unique(array_map('intval', $matches[1])));
+
+        try {
+            if ($anios) {
+                $existe = $this->fetchOne($this->pdoCon, "
+                    SELECT COUNT(*) total FROM poa
+                    WHERE estado = 1 AND anio_planificacion IN (" . implode(',', $anios) . ")
+                ");
+                if ((int) ($existe['total'] ?? 0) > 0) {
+                    return $anios;
+                }
+            }
+
+            $ultimo = $this->fetchOne($this->pdoCon, "SELECT MAX(anio_planificacion) anio FROM poa WHERE estado = 1");
+        } catch (PDOException $exception) {
+            if ($this->isOptionalSchemaException($exception)) {
+                return [];
+            }
+            throw $exception;
+        }
+
+        return !empty($ultimo['anio']) ? [(int) $ultimo['anio']] : [];
+    }
+
     /* =========================
        USUARIO
     ========================= */
@@ -260,31 +317,8 @@ class DashboardModel
             ORDER BY porcentaje_avance DESC
         ");
 
-        $data['AvanceProyectosInvestigacion'] = $this->fetchAll($this->pdoCon, "
-            SELECT nombre_proyecto, porcentaje_avance
-            FROM proyectos_administracion
-            WHERE estado='ACTIVO'
-            AND tipo_proyecto='INVESTIGACION'
-            AND periodo_academico = (
-                SELECT MAX(periodo_academico)
-                FROM proyectos_administracion
-                WHERE tipo_proyecto='INVESTIGACION'
-            )
-            ORDER BY porcentaje_avance DESC
-        ");
-
-        $data['AvanceProyectosVinculacion'] = $this->fetchAll($this->pdoCon, "
-            SELECT nombre_proyecto, porcentaje_avance
-            FROM proyectos_administracion
-            WHERE estado='ACTIVO'
-            AND tipo_proyecto='VINCULACION'
-            AND periodo_academico = (
-                SELECT MAX(periodo_academico)
-                FROM proyectos_administracion
-                WHERE tipo_proyecto='VINCULACION'
-            )
-            ORDER BY porcentaje_avance DESC
-        ");
+        $data['AvanceProyectosInvestigacion'] = $this->getAvanceProyectosUltimoPeriodo('INVESTIGACION');
+        $data['AvanceProyectosVinculacion'] = $this->getAvanceProyectosUltimoPeriodo('VINCULACION');
 
         /* =========================
         PROFESORES
@@ -332,52 +366,69 @@ class DashboardModel
 
         /* =========================
         PEDI
+        ejes_estrategicos -> objetivos_estrategicos -> estrategias -> poa -> poa_actividades
         ========================= */
 
         $data['avancePedi'] = $this->fetchAllOptional($this->pdoCon, "
-            SELECT objetivo_estrategia, avance
-            FROM pedi
-            WHERE estado='activo'
+            SELECT
+                o.codigo AS objetivo_estrategia,
+                o.nombre AS objetivo_nombre,
+                ROUND(COALESCE(AVG(a.avance_actividad), o.avance, 0), 2) AS avance,
+                COUNT(a.id) AS total_actividades
+            FROM objetivos_estrategicos o
+            LEFT JOIN estrategias e ON e.objetivo_estrategico_id = o.id AND e.estado = 1
+            LEFT JOIN poa p ON p.estrategia_id = e.id AND p.estado = 1
+            LEFT JOIN poa_actividades a ON a.poa_id = p.id AND a.estado = 1
+            WHERE o.estado = 1
+            GROUP BY o.id, o.codigo, o.nombre, o.avance
+            ORDER BY o.codigo
         ");
 
         /* =========================
-        POA
+        POA (área = procesos asociados al POA, igual que en Conectados)
         ========================= */
 
-        $data['avancePoa'] = $this->fetchAllOptional($this->pdoCon, "
-            SELECT nombre_area,
-            SUM(CASE WHEN estado_actividad='Ejecutada' THEN presupuesto_anual ELSE 0 END) ejecutado,
-            SUM(CASE WHEN estado_actividad='en progreso' THEN presupuesto_anual ELSE 0 END) progreso,
-            SUM(CASE WHEN estado_actividad='no ejecutada' THEN presupuesto_anual ELSE 0 END) no_ejecutado
-            FROM poa
-            WHERE estado='activo'
-            GROUP BY nombre_area
-        ");
+        $aniosPoa = $this->getAniosPoa($periodoActual);
+        $aniosPoaSql = implode(',', $aniosPoa);
+        $areaPoaSql = "
+            LEFT JOIN (
+                SELECT pp.poa_id, GROUP_CONCAT(pr.nombre ORDER BY pr.nombre SEPARATOR ', ') AS nombre_area
+                FROM poa_procesos pp
+                INNER JOIN procesos pr ON pr.id = pp.proceso_id
+                GROUP BY pp.poa_id
+            ) area ON area.poa_id = p.id
+        ";
 
-        $data['actividadesPoa'] = $this->fetchAllOptional($this->pdoCon, "
-            SELECT p.nombre_area, act.nombre_actividad, act.avance
-            FROM poa_actividades AS act
-            JOIN poa AS p ON p.id_poa = act.id_poa
-            WHERE YEAR(fecha_inicio) BETWEEN
-            (
-                SELECT MIN(CAST(REGEXP_SUBSTR(periodo, '[0-9]{4}') AS UNSIGNED))
-                FROM users
-                WHERE periodo = {$periodoActualSql}
-            )
-            AND
-            (
-                SELECT MAX(CAST(REGEXP_SUBSTR(periodo, '[0-9]{4}') AS UNSIGNED))
-                FROM users
-                WHERE periodo = {$periodoActualSql}
-            )
-            ORDER BY avance DESC
-        ");
-
-        $data['areas'] = $this->fetchAllOptional($this->pdoCon, "
-            SELECT DISTINCT nombre_area
-            FROM poa
+        $data['avancePoa'] = $aniosPoa ? $this->fetchAllOptional($this->pdoCon, "
+            SELECT
+                COALESCE(area.nombre_area, 'Sin área') AS nombre_area,
+                SUM(COALESCE(a.presupuesto_asignado, 0)) AS asignado,
+                SUM(LEAST(COALESCE(a.presupuesto_ejecutado, 0), COALESCE(a.presupuesto_asignado, 0))) AS ejecutado
+            FROM poa p
+            INNER JOIN poa_actividades a ON a.poa_id = p.id AND a.estado = 1
+            {$areaPoaSql}
+            WHERE p.estado = 1
+            AND p.anio_planificacion IN ({$aniosPoaSql})
+            GROUP BY COALESCE(area.nombre_area, 'Sin área')
             ORDER BY nombre_area
-        ");
+        ") : [];
+
+        $data['actividadesPoa'] = $aniosPoa ? $this->fetchAllOptional($this->pdoCon, "
+            SELECT
+                COALESCE(area.nombre_area, 'Sin área') AS nombre_area,
+                a.nombre AS nombre_actividad,
+                COALESCE(a.avance_actividad, 0) AS avance
+            FROM poa p
+            INNER JOIN poa_actividades a ON a.poa_id = p.id AND a.estado = 1
+            {$areaPoaSql}
+            WHERE p.estado = 1
+            AND p.anio_planificacion IN ({$aniosPoaSql})
+            ORDER BY a.avance_actividad DESC
+        ") : [];
+
+        $areas = array_values(array_unique(array_column($data['actividadesPoa'], 'nombre_area')));
+        sort($areas);
+        $data['areas'] = array_map(fn($area) => ['nombre_area' => $area], $areas);
 
         /* =========================
         CONVENIOS

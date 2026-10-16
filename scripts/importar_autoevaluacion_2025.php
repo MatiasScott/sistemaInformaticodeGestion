@@ -3,9 +3,14 @@
 /**
  * Importa la autoevaluación 2025 desde "Fichas indicadores modelo 2025.xlsx" (hoja "Modelo").
  *
- * Uso:
+ * Uso (local):
  *   php scripts/importar_autoevaluacion_2025.php "C:\ruta\Fichas indicadores modelo 2025.xlsx"          (simulación)
  *   php scripts/importar_autoevaluacion_2025.php "C:\ruta\Fichas indicadores modelo 2025.xlsx" --apply  (guarda)
+ *
+ * Uso (VPS con Docker): copie el Excel al contenedor y ejecútelo dentro:
+ *   docker cp "Fichas indicadores modelo 2025.xlsx" superar1_sig:/tmp/modelo2025.xlsx
+ *   docker exec superar1_sig php scripts/importar_autoevaluacion_2025.php /tmp/modelo2025.xlsx
+ *   docker exec superar1_sig php scripts/importar_autoevaluacion_2025.php /tmp/modelo2025.xlsx --apply
  *
  * Es idempotente: reutiliza el periodo, criterios, subcriterios, cargos e indicadores existentes
  * y no duplica evaluaciones ya registradas.
@@ -28,7 +33,20 @@ const HOJA = 'Modelo';
 $args = array_slice($argv, 1);
 $apply = in_array('--apply', $args, true);
 $rutas = array_values(array_filter($args, fn($a) => $a !== '--apply'));
-$archivo = $rutas[0] ?? (getenv('USERPROFILE') . '\\Downloads\\Fichas indicadores modelo 2025.xlsx');
+$archivoPorDefecto = getenv('USERPROFILE') ? getenv('USERPROFILE') . '\\Downloads\\Fichas indicadores modelo 2025.xlsx' : null;
+$archivo = $rutas[0] ?? $archivoPorDefecto;
+
+if ($archivo === null) {
+    fwrite(STDERR, "Indique la ruta del Excel. Ejemplo en Docker:\n"
+        . "  docker cp \"Fichas indicadores modelo 2025.xlsx\" superar1_sig:/tmp/modelo2025.xlsx\n"
+        . "  docker exec superar1_sig php scripts/importar_autoevaluacion_2025.php /tmp/modelo2025.xlsx\n");
+    exit(1);
+}
+
+if (!class_exists('ZipArchive') || !function_exists('simplexml_load_string')) {
+    fwrite(STDERR, "Faltan las extensiones PHP zip y/o simplexml.\n");
+    exit(1);
+}
 
 if (!is_file($archivo)) {
     fwrite(STDERR, "No se encontró el archivo: {$archivo}\n");
@@ -203,6 +221,16 @@ if (abs($pesoTotal - 100) > 0.01) {
 $db = (new Database())->connect();
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+echo 'Base de datos: ' . $db->query('SELECT DATABASE()')->fetchColumn() . "\n";
+
+// Datos importados con la versión anterior (códigos AE2025-NN): primero hay que renombrarlos.
+$antiguos = (int) $db->query("SELECT COUNT(*) FROM indicadores WHERE codigo LIKE 'AE2025-%'")->fetchColumn();
+if ($antiguos > 0) {
+    fwrite(STDERR, "Hay {$antiguos} indicadores con códigos AE2025-NN. Ejecute primero:\n"
+        . "  php scripts/actualizar_modelo_caces.php --apply\n");
+    exit(1);
+}
+
 $escalas = [];
 foreach ($db->query("SELECT id, nombre, valor FROM escala_cualitativa WHERE estado = 'activo'") as $escala) {
     $escalas[number_format((float) $escala['valor'], 2, '.', '')] = $escala;
@@ -272,6 +300,17 @@ try {
         $codigo = $r['codigo'];
         $esCuantitativo = $r['tipo'] === 'cuantitativo';
         $indicadoresAntes = $contador['indicador_creados'];
+
+        // El código es único en toda la tabla: no reutilizar un indicador de otro período/subcriterio.
+        $ocupado = $db->prepare('SELECT id, subcriterio_id, nombre FROM indicadores WHERE codigo = ?');
+        $ocupado->execute([$codigo]);
+        $existente = $ocupado->fetch(PDO::FETCH_ASSOC);
+        if ($existente && (int) $existente['subcriterio_id'] !== (int) $subcriterioId) {
+            throw new RuntimeException(
+                "El código {$codigo} ya lo usa otro indicador (id {$existente['id']}: {$existente['nombre']}) "
+                . "que no pertenece a {$r['subcriterio']} del período " . PERIODO_NOMBRE . '.'
+            );
+        }
 
         $indicadorId = buscarOCrear(
             $db,

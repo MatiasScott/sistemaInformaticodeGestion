@@ -50,7 +50,7 @@ class DashboardController extends Controller
             $endYear
         );
         $data['byIndicator'] = $evalModel->getResultsByIndicator();
-        $data['byCriterio'] = $criterioModel->getCriterio();
+        $data['byCriterio'] = $criterioModel->getAportePorAnio($startYear, $endYear);
 
         $data['startYear'] = $startYear;
         $data['endYear'] = $endYear;
